@@ -65,11 +65,13 @@ export function AudioSequencer({ sounds, onSequencePlay, onSequenceStop }: Audio
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [zoom, setZoom] = useState(10) // pixels per second
   const [previewingSound, setPreviewingSound] = useState<string | null>(null)
+  const [isLoadingSequence, setIsLoadingSequence] = useState(false)
   
   const timelineRef = useRef<HTMLDivElement>(null)
   const playbackRef = useRef<NodeJS.Timeout>()
   const audioRefs = useRef<{ [key: string]: HTMLAudioElement }>({})
   const previewAudioRef = useRef<HTMLAudioElement | null>(null)
+  const currentSequenceIndex = useRef<number>(0)
 
   // Calculate total sequence duration
   useEffect(() => {
@@ -246,6 +248,89 @@ export function AudioSequencer({ sounds, onSequencePlay, onSequenceStop }: Audio
       previewAudioRef.current = null
     }
     setPreviewingSound(null)
+  }
+
+  const loadSequentialSequence = () => {
+    if (sounds.length === 0) return
+    
+    setIsLoadingSequence(true)
+    
+    // Create a sequential sequence with all sounds
+    let currentTime = 0
+    const sequentialItems: SequenceItem[] = sounds.map((sound, index) => {
+      const item: SequenceItem = {
+        id: `seq-${Date.now()}-${index}`,
+        soundId: sound.id,
+        startTime: currentTime,
+        volume: sound.volume,
+        fadeIn: 0,
+        fadeOut: 0.5,
+        crossfade: index > 0 ? 0.5 : 0,
+        layer: 0,
+        sound
+      }
+      
+      currentTime += sound.duration
+      return item
+    })
+    
+    setSequence(sequentialItems)
+    setIsLoadingSequence(false)
+  }
+
+  const playSequentialMode = async () => {
+    if (sequence.length === 0) return
+    
+    setIsPlaying(true)
+    currentSequenceIndex.current = 0
+    setCurrentTime(0)
+    
+    const startTime = Date.now()
+    
+    // Start smooth playhead movement
+    playbackRef.current = setInterval(() => {
+      const elapsed = (Date.now() - startTime) / 1000
+      setCurrentTime(elapsed)
+      
+      if (elapsed >= totalDuration) {
+        stopSequence()
+      }
+    }, 50) // Update every 50ms for smooth movement
+    
+    const playNextInSequence = async () => {
+      if (currentSequenceIndex.current >= sequence.length) {
+        return
+      }
+      
+      const item = sequence[currentSequenceIndex.current]
+      const sound = sounds.find(s => s.id === item.soundId)
+      
+      if (!sound) {
+        currentSequenceIndex.current++
+        playNextInSequence()
+        return
+      }
+      
+      try {
+        const audio = new Audio(sound.file || sound.asset?.url)
+        audio.volume = (item.volume / 100)
+        audioRefs.current[item.id] = audio
+        
+        audio.onended = () => {
+          currentSequenceIndex.current++
+          playNextInSequence()
+        }
+        
+        await audio.play()
+      } catch (error) {
+        console.error('Error playing sequential sound:', error)
+        currentSequenceIndex.current++
+        playNextInSequence()
+      }
+    }
+    
+    playNextInSequence()
+    onSequencePlay(sequence)
   }
 
   const formatTime = (seconds: number) => {
@@ -592,7 +677,10 @@ export function AudioSequencer({ sounds, onSequencePlay, onSequenceStop }: Audio
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setSequence([])}
+            onClick={() => {
+              stopSequence()
+              setSequence([])
+            }}
             disabled={sequence.length === 0}
           >
             <Trash2 className="h-4 w-4 mr-2" />
@@ -611,9 +699,21 @@ export function AudioSequencer({ sounds, onSequencePlay, onSequenceStop }: Audio
           <Button
             variant="outline"
             size="sm"
+            onClick={loadSequentialSequence}
+            disabled={sounds.length === 0 || isLoadingSequence}
           >
             <Upload className="h-4 w-4 mr-2" />
-            Load Sequence
+            {isLoadingSequence ? 'Loading...' : 'Load Sequential'}
+          </Button>
+          
+          <Button
+            variant="default"
+            size="sm"
+            onClick={playSequentialMode}
+            disabled={sequence.length === 0 || isPlaying}
+          >
+            <Play className="h-4 w-4 mr-2" />
+            Play Sequential
           </Button>
         </div>
       </CardContent>

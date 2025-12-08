@@ -5,6 +5,7 @@ import LivePlayer from "@/components/live-player";
 import { ChatWidget } from "@/components/chat/chat-widget";
 import { useAuth } from "@/contexts/auth-context";
 import { BroadcastProvider, useBroadcast } from "@/contexts/broadcast-context";
+import { ChatProvider } from "@/contexts/chat-context";
 
 interface GlobalAudioContextType {
   isPlaying: boolean;
@@ -62,22 +63,24 @@ export function GlobalAudioProvider({
       }}
     >
       {children}
-      <BroadcastProvider isBroadcaster={false}>
-        <LivePlayer />
-        {user && (
-          <ChatWidget
-            broadcastId={currentBroadcast?.id || "general-chat"}
-            currentUser={{
-              id: user.id,
-              username: user.name || user.email || "User",
-              avatar: user.profilePicture || undefined,
-              role: user.role === "admin" ? "admin" : "listener",
-            }}
-            isLive={isLive}
-            position="bottom-right"
-          />
-        )}
-      </BroadcastProvider>
+      <ChatProvider>
+        <BroadcastProvider isBroadcaster={false}>
+          <LivePlayer />
+          {user && (
+            <ChatWidget
+              broadcastId={currentBroadcast?.id || "general-chat"}
+              currentUser={{
+                id: user.id,
+                username: user.name || user.email || "User",
+                avatar: user.profilePicture || undefined,
+                role: user.role === "admin" ? "admin" : "listener",
+              }}
+              isLive={isLive}
+              position="bottom-right"
+            />
+          )}
+        </BroadcastProvider>
+      </ChatProvider>
     </GlobalAudioContext.Provider>
   );
 }

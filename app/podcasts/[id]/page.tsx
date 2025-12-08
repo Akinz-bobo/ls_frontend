@@ -19,7 +19,7 @@ import {
   addComment,
   getEpisodeComments,
   getEpisodeTranscript,
-} from "@/frontend/app/podcasts/actions";
+} from "@/app/podcasts/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 

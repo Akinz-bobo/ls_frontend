@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   getArchives,
   getArchiveCategories,
-} from "@/frontend/app/archives/actions";
+} from "@/app/archives/actions";
 
 // This is a server component that fetches the initial data
 async function ArchivesContent() {

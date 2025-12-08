@@ -90,6 +90,7 @@ export function EnhancedChat({ isLive, hostId, broadcastId, onMessageSend, onUse
   // Join broadcast when component mounts
   useEffect(() => {
     if (broadcastId && hostId && !state.currentBroadcast) {
+      console.log('🎤 Joining broadcast chat:', broadcastId)
       joinBroadcast(broadcastId, {
         id: hostId,
         username: 'Radio Host',
@@ -290,11 +291,20 @@ export function EnhancedChat({ isLive, hostId, broadcastId, onMessageSend, onUse
               <Badge variant="outline">{filteredMessages.length} messages</Badge>
               {state.isConnected ? (
                 <Badge variant="default" className="bg-green-500">
-                  🟢 Live
+                  🟢 Connected
                 </Badge>
               ) : (
                 <Badge variant="destructive">
-                  🔴 Offline
+                  🔴 Disconnected
+                </Badge>
+              )}
+              {state.isBroadcastLive ? (
+                <Badge variant="default" className="bg-red-500 animate-pulse">
+                  🎤 LIVE
+                </Badge>
+              ) : (
+                <Badge variant="outline">
+                  📻 Offline
                 </Badge>
               )}
             </div>
@@ -491,7 +501,13 @@ export function EnhancedChat({ isLive, hostId, broadcastId, onMessageSend, onUse
               <div className="flex-1 relative">
                 <Input
                   ref={chatInputRef}
-                  placeholder={state.isConnected ? "Send a message to listeners..." : "Connecting to chat..."}
+                  placeholder={
+                    !state.isConnected 
+                      ? "Connecting to chat..." 
+                      : !state.isBroadcastLive 
+                        ? "Broadcast is offline. Messages available when live..." 
+                        : "Send a message to listeners..."
+                  }
                   value={newMessage}
                   onChange={(e) => handleInputChange(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}

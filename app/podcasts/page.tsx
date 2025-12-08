@@ -3,7 +3,7 @@ import { PodcastList } from "@/components/podcast/podcast-list";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { prisma } from "@/lib/prisma";
-import { getFavoritePodcasts } from "@/frontend/app/podcasts/actions";
+import { getFavoritePodcasts } from "@/app/podcasts/actions";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 
 // This is a server component that fetches the initial data

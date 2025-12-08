@@ -94,6 +94,7 @@ type ChatAction =
   | { type: 'MUTE_USER'; payload: string }
   | { type: 'UNMUTE_USER'; payload: string }
   | { type: 'UPDATE_CHAT_SETTINGS'; payload: Partial<ChatState['chatSettings']> }
+  | { type: 'CLEAR_MESSAGES' }
 
 const initialState: ChatState = {
   messages: [],
@@ -278,6 +279,12 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         chatSettings: { ...state.chatSettings, ...action.payload }
       }
     
+    case 'CLEAR_MESSAGES':
+      return {
+        ...state,
+        messages: []
+      }
+    
     default:
       return state
   }
@@ -297,10 +304,10 @@ interface ChatContextType {
   deleteMessage: (messageId: string) => void
   toggleChat: () => void
   minimizeChat: () => void
-  
   maximizeChat: () => void
   clearUnread: () => void
   updateSettings: (settings: Partial<ChatState['chatSettings']>) => void
+  setBroadcastLive: (isLive: boolean, broadcastInfo?: { id: string; title: string; startTime: Date }) => void
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined)
@@ -317,9 +324,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       transports: ['websocket', 'polling'],
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: 10,
       reconnectionDelay: 1000,
-      timeout: 20000
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
+      forceNew: false
     })
     
     socketRef.current = socket
@@ -328,15 +337,56 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'SET_CONNECTED', payload: true })
       console.log('🔗 Chat connected to server')
     })
+    
+    socket.on('chat-connected', (data: any) => {
+      console.log('✅ Chat connection confirmed:', data)
+    })
 
     socket.on('disconnect', (reason) => {
       dispatch({ type: 'SET_CONNECTED', payload: false })
       console.log(`❌ Chat disconnected from server: ${reason}`)
+      
+      if (reason === 'io server disconnect') {
+        // Server initiated disconnect, try to reconnect
+        socket.connect()
+      }
+    })
+    
+    socket.on('reconnect', (attemptNumber: number) => {
+      dispatch({ type: 'SET_CONNECTED', payload: true })
+      console.log(`🔄 Chat reconnected after ${attemptNumber} attempts`)
+      toast.success('Chat reconnected successfully')
+    })
+    
+    socket.on('reconnect_attempt', (attemptNumber: number) => {
+      console.log(`🔄 Chat reconnection attempt ${attemptNumber}`)
+    })
+    
+    socket.on('reconnect_failed', () => {
+      console.error('❌ Chat reconnection failed after maximum attempts')
+      toast.error('Chat connection failed. Please refresh the page.')
     })
 
     socket.on('connect_error', (error) => {
       console.error('🚨 Chat connection error:', error)
       dispatch({ type: 'SET_CONNECTED', payload: false })
+      toast.error('Chat connection error')
+    })
+    
+    // Enhanced error handling
+    socket.on('chat-error', (error: any) => {
+      console.error('🚨 Chat error:', error)
+      toast.error(error.error || 'Chat error occurred')
+    })
+    
+    socket.on('message-error', (error: any) => {
+      console.error('📨 Message error:', error)
+      toast.error(error.error || 'Message error occurred')
+    })
+    
+    socket.on('moderation-error', (error: any) => {
+      console.error('🛡️ Moderation error:', error)
+      toast.error(error.error || 'Moderation error occurred')
     })
 
     socket.on('new-message', (data: any) => {
@@ -423,10 +473,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         } 
       })
       
-      // Clear typing after 3 seconds
+      // Clear typing after 5 seconds (server handles 3s auto-clear)
       setTimeout(() => {
         dispatch({ type: 'CLEAR_TYPING', payload: data.userId })
-      }, 3000)
+      }, 5000)
     })
 
     socket.on('user-stopped-typing', (data: any) => {
@@ -436,10 +486,159 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
 
     socket.on('user-moderated', (data: any) => {
+      console.log(`🛡️ User moderated:`, data)
+      const actionMessages: { [key: string]: string } = {
+        ban: `🚫 ${data.username} was banned`,
+        unban: `✅ ${data.username} was unbanned`,
+        mute: `🔇 ${data.username} was muted`,
+        unmute: `🔊 ${data.username} was unmuted`,
+        timeout: `⏰ ${data.username} was timed out`
+      }
+      
+      if (actionMessages[data.action]) {
+        toast.info(actionMessages[data.action])
+      }
+      
       if (data.action === 'ban') {
         dispatch({ type: 'BAN_USER', payload: data.userId })
       } else if (data.action === 'mute') {
         dispatch({ type: 'MUTE_USER', payload: data.userId })
+      } else if (data.action === 'unban') {
+        dispatch({ type: 'UNBAN_USER', payload: data.userId })
+      } else if (data.action === 'unmute') {
+        dispatch({ type: 'UNMUTE_USER', payload: data.userId })
+      }
+    })
+    
+    socket.on('user-banned', (data: any) => {
+      toast.error(`You have been banned from this chat. Reason: ${data.reason || 'No reason provided'}`)
+      // Force disconnect from chat
+      leaveBroadcast()
+    })
+    
+    socket.on('user-unmuted', (data: any) => {
+      if (data.automatic) {
+        toast.info(`🔊 ${data.username} was automatically unmuted`)
+      }
+    })
+    
+    // New event handlers for improved backend
+    socket.on('chat-joined', (response: any) => {
+      console.log('✅ Successfully joined chat:', response)
+      if (response.success && response.data) {
+        const { messages, settings } = response.data
+        
+        // Add historical messages to state
+        messages?.forEach((msg: any) => {
+          const message: ChatMessage = {
+            id: msg.id,
+            broadcastId: response.data.broadcastId || state.currentBroadcast || '',
+            userId: msg.userId,
+            username: msg.username,
+            userAvatar: msg.avatar,
+            content: msg.content,
+            messageType: msg.messageType,
+            timestamp: new Date(msg.timestamp),
+            likes: msg.likes || 0,
+            dislikes: 0,
+            isLiked: msg.likedBy ? msg.likedBy.includes(state.currentUser?.id) : false,
+            isDisliked: false,
+            isPinned: msg.isPinned || false,
+            isHighlighted: msg.messageType === 'announcement',
+            replyTo: msg.replyTo,
+            emojis: msg.reactions || {},
+            isModerated: false,
+            moderationReason: msg.moderationReason
+          }
+          dispatch({ type: 'ADD_MESSAGE', payload: message })
+        })
+        
+        // Update chat settings
+        if (settings) {
+          dispatch({ type: 'UPDATE_CHAT_SETTINGS', payload: settings })
+        }
+      }
+    })
+    
+    socket.on('users-updated', (data: any) => {
+      console.log('👥 Users updated:', data)
+      // Update user list
+      data.users?.forEach((user: any) => {
+        const chatUser: ChatUser = {
+          id: user.id,
+          username: user.username,
+          avatar: user.avatar,
+          role: user.role || 'listener',
+          isOnline: true,
+          isTyping: user.isTyping || false,
+          lastSeen: new Date(),
+          messageCount: 0
+        }
+        dispatch({ type: 'UPDATE_USER', payload: { id: user.id, updates: chatUser } })
+      })
+    })
+    
+    socket.on('message-moderated', (data: any) => {
+      console.log('🛡️ Message moderated:', data)
+      if (data.action === 'delete') {
+        dispatch({ type: 'DELETE_MESSAGE', payload: data.messageId })
+        toast.info(`Message deleted by ${data.moderatedBy}`)
+      } else {
+        dispatch({ 
+          type: 'UPDATE_MESSAGE', 
+          payload: { 
+            id: data.messageId, 
+            updates: data.message 
+          } 
+        })
+        
+        const actionMessages: { [key: string]: string } = {
+          pin: 'pinned',
+          unpin: 'unpinned', 
+          highlight: 'highlighted'
+        }
+        
+        if (actionMessages[data.action]) {
+          toast.info(`Message ${actionMessages[data.action]} by ${data.moderatedBy}`)
+        }
+      }
+    })
+    
+    socket.on('message-sent', (response: any) => {
+      if (!response.success) {
+        toast.error(response.error || 'Failed to send message')
+      }
+    })
+    
+    socket.on('moderation-success', (response: any) => {
+      if (response.success) {
+        toast.success(response.message || 'Moderation action completed')
+      }
+    })
+    
+    socket.on('like-success', (response: any) => {
+      if (response.success) {
+        // Optionally show subtle feedback for likes
+      }
+    })
+    
+    // Handle broadcast status updates from server
+    socket.on('broadcast-status-updated', (data: any) => {
+      console.log('📻 Received broadcast status update:', data)
+      
+      dispatch({ type: 'SET_BROADCAST_LIVE', payload: data.isLive })
+      
+      // Show notification to users
+      if (data.isLive) {
+        toast.success('🎤 Broadcast is now LIVE! Chat activated.')
+      } else {
+        toast.info('📻 Broadcast ended. Chat remains open for discussion.')
+      }
+    })
+    
+    socket.on('broadcast-status-success', (response: any) => {
+      if (response.success) {
+        console.log('✅ Broadcast status updated successfully:', response.message)
       }
     })
 
@@ -542,7 +741,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       socketRef.current.emit('send-announcement', state.currentBroadcast, {
         content: content.trim(),
         username: state.currentUser.username,
-        isStaff: true
+        isStaff: ['host', 'moderator', 'admin'].includes(state.currentUser.role)
       })
     } else {
       socketRef.current.emit('send-message', state.currentBroadcast, messageData)
@@ -583,33 +782,41 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
+    // Clear existing messages if switching to different broadcast
+    if (state.currentBroadcast && state.currentBroadcast !== broadcastId) {
+      dispatch({ type: 'CLEAR_MESSAGES' })
+    }
+
     dispatch({ type: 'SET_CURRENT_BROADCAST', payload: broadcastId })
     dispatch({ type: 'SET_CURRENT_USER', payload: user })
 
-    // Load chat history from database
+    // Load chat history from backend
     try {
-      const response = await fetch(`/api/chat?broadcastId=${broadcastId}`)
+      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001'
+      const response = await fetch(`${wsUrl}/chat/${broadcastId}/history?limit=100`)
       if (response.ok) {
-        const messages = await response.json()
+        const data = await response.json()
+        const messages = data.messages || []
+        console.log(`📚 Loaded ${messages.length} chat messages for broadcast ${broadcastId}`)
         // Add historical messages to state
         messages.forEach((msg: any) => {
           const message: ChatMessage = {
             id: msg.id,
-            broadcastId: msg.broadcastId,
-            userId: msg.userId,
+            broadcastId: broadcastId, // Use current broadcastId
+            userId: msg.userId || 'unknown',
             username: msg.username,
             userAvatar: msg.userAvatar,
             content: msg.content,
-            messageType: msg.messageType,
+            messageType: msg.messageType || 'user',
             timestamp: new Date(msg.timestamp),
             likes: msg.likes || 0,
             dislikes: 0,
-            isLiked: msg.likedBy ? JSON.parse(msg.likedBy).includes(user.id) : false,
+            isLiked: false, // Will be updated later
             isDisliked: false,
             isPinned: msg.isPinned || false,
             isHighlighted: msg.isHighlighted || false,
             replyTo: msg.replyTo,
-            emojis: msg.emojis ? JSON.parse(msg.emojis) : {},
+            emojis: {},
             isModerated: msg.isModerated || false,
             moderationReason: msg.moderationReason
           }
@@ -640,47 +847,19 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_CURRENT_BROADCAST', payload: '' })
   }
 
-  const moderateMessage = async (messageId: string, action: 'delete' | 'pin' | 'highlight' | 'hide') => {
-    if (!state.currentUser) return
-
-    try {
-      const response = await fetch('/api/chat/moderate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messageId,
-          action,
-          reason: `Message ${action}ed by moderator`
-        })
-      })
-
-      if (response.ok) {
-        const result = await response.json()
-        // Update local state
-        dispatch({ 
-          type: 'UPDATE_MESSAGE', 
-          payload: { 
-            id: messageId, 
-            updates: result.message 
-          } 
-        })
-        
-        // Also emit via WebSocket for real-time updates
-        if (socketRef.current) {
-          socketRef.current.emit('moderate-message', {
-            messageId,
-            action,
-            moderatorId: state.currentUser.id,
-            broadcastId: state.currentBroadcast
-          })
-        }
-      }
-    } catch (error) {
-      console.error('Error moderating message:', error)
-      toast.error('Failed to moderate message')
+  const moderateMessage = async (messageId: string, action: 'delete' | 'pin' | 'highlight' | 'unpin') => {
+    if (!state.currentUser || !socketRef.current) {
+      toast.error('Not connected to chat')
+      return
     }
+
+    // Use Socket.IO for real-time moderation
+    socketRef.current.emit('moderate-message', {
+      messageId,
+      action,
+      broadcastId: state.currentBroadcast,
+      reason: `Message ${action}ed by moderator`
+    })
   }
 
   const editMessage = async (messageId: string, newContent: string) => {
@@ -696,93 +875,32 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }
 
   const moderateUser = async (userId: string, action: 'ban' | 'unban' | 'mute' | 'unmute' | 'timeout', duration?: number) => {
-    if (!state.currentUser || !state.currentBroadcast) return
-
-    try {
-      const response = await fetch('/api/chat/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          broadcastId: state.currentBroadcast,
-          action,
-          targetUserId: userId,
-          duration,
-          reason: `User ${action}ed by moderator`
-        })
-      })
-
-      if (response.ok) {
-        // Update local state immediately
-        if (action === 'ban') {
-          dispatch({ type: 'BAN_USER', payload: userId })
-        } else if (action === 'unban') {
-          dispatch({ type: 'UNBAN_USER', payload: userId })
-        } else if (action === 'mute') {
-          dispatch({ type: 'MUTE_USER', payload: userId })
-        } else if (action === 'unmute') {
-          dispatch({ type: 'UNMUTE_USER', payload: userId })
-        }
-
-        // Also emit via WebSocket for real-time updates
-        if (socketRef.current) {
-          socketRef.current.emit('moderate-user', {
-            userId,
-            action,
-            moderatorId: state.currentUser.id,
-            broadcastId: state.currentBroadcast
-          })
-        }
-      }
-    } catch (error) {
-      console.error('Error moderating user:', error)
-      toast.error('Failed to moderate user')
+    if (!state.currentUser || !state.currentBroadcast || !socketRef.current) {
+      toast.error('Not connected to chat')
+      return
     }
+
+    // Use Socket.IO for real-time moderation
+    socketRef.current.emit('moderate-user', {
+      userId,
+      action,
+      broadcastId: state.currentBroadcast,
+      reason: `User ${action}ed by moderator`,
+      duration
+    })
   }
 
   const likeMessage = async (messageId: string) => {
-    if (!state.currentUser) return
-
-    try {
-      const response = await fetch('/api/chat/reactions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messageId,
-          type: 'like'
-        })
-      })
-
-      if (response.ok) {
-        const result = await response.json()
-        // Update local state
-        dispatch({ 
-          type: 'UPDATE_MESSAGE', 
-          payload: { 
-            id: messageId, 
-            updates: { 
-              likes: result.message.likes,
-              isLiked: JSON.parse(result.message.likedBy || '[]').includes(state.currentUser.id)
-            } 
-          } 
-        })
-
-        // Also emit via WebSocket for real-time updates
-        if (socketRef.current) {
-          socketRef.current.emit('like-message', {
-            messageId,
-            userId: state.currentUser.id,
-            broadcastId: state.currentBroadcast
-          })
-        }
-      }
-    } catch (error) {
-      console.error('Error liking message:', error)
-      toast.error('Failed to like message')
+    if (!state.currentUser || !socketRef.current) {
+      toast.error('Not connected to chat')
+      return
     }
+
+    // Use Socket.IO for real-time reactions
+    socketRef.current.emit('like-message', {
+      messageId,
+      broadcastId: state.currentBroadcast
+    })
   }
 
   const toggleChat = () => {
@@ -805,6 +923,24 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'UPDATE_CHAT_SETTINGS', payload: settings })
   }
 
+  const setBroadcastLive = (isLive: boolean, broadcastInfo?: { id: string; title: string; startTime: Date }) => {
+    dispatch({ type: 'SET_BROADCAST_LIVE', payload: isLive })
+    if (broadcastInfo) {
+      dispatch({ type: 'SET_BROADCAST_INFO', payload: broadcastInfo })
+    }
+    
+    // Emit broadcast status to server for chat room management
+    if (socketRef.current && state.currentBroadcast) {
+      socketRef.current.emit('broadcast-status-change', {
+        broadcastId: state.currentBroadcast,
+        isLive,
+        timestamp: new Date().toISOString()
+      })
+    }
+    
+    console.log(`📻 Broadcast status changed: ${isLive ? 'LIVE' : 'OFFLINE'}`, broadcastInfo)
+  }
+
   return (
     <ChatContext.Provider
       value={{
@@ -823,7 +959,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         minimizeChat,
         maximizeChat,
         clearUnread,
-        updateSettings
+        updateSettings,
+        setBroadcastLive
       }}
     >
       {children}

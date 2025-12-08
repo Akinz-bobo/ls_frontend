@@ -15,7 +15,7 @@ import {
   toggleFavoriteAudiobook,
   checkIsFavorite,
   getAudiobookProgress,
-} from "@/frontend/app/audiobooks/actions";
+} from "@/app/audiobooks/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { generateSampleChapters, getSampleAudioUrl } from "@/lib/audiobook-api";

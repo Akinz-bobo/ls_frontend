@@ -18,7 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Upload, FileText, Save, BookOpen, Clock, Music } from "lucide-react";
-import { getChapter, updateChapter } from "@/frontend/app/actions";
+import { getChapter, updateChapter } from "@/app/actions";
 
 export default function EditChapterPage() {
   const params = useParams();

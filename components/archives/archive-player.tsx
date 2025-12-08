@@ -14,8 +14,8 @@ import {
 import {
   saveArchiveProgress,
   getArchiveProgress,
-} from "@/frontend/app/archives/actions";
-import type { ArchiveData } from "@/frontend/app/archives/actions";
+} from "@/app/archives/actions";
+import type { ArchiveData } from "@/app/archives/actions";
 import { set } from "date-fns";
 
 interface ArchivePlayerProps {

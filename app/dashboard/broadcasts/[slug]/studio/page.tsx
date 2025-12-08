@@ -7,8 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Progress } from "@/components/ui/progress";
 import {
   Radio,
   RadioIcon as RadioOff,
@@ -43,6 +41,7 @@ import {
   BroadcastStudioProvider,
   useBroadcastStudio,
 } from "@/contexts/broadcast-studio-context";
+import { ChatProvider, useChat } from "@/contexts/chat-context";
 
 type Broadcast = {
   id: string;
@@ -120,6 +119,7 @@ function StudioInterface() {
   const router = useRouter();
   const params = useParams();
   const broadcastSlug = params.slug as string;
+  console.log("Broadcast Slug:", broadcastSlug);
 
   const [broadcast, setBroadcast] = useState<Broadcast | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -138,6 +138,15 @@ function StudioInterface() {
     updateAudioLevels,
   } = useBroadcastStudio();
 
+  // Use chat context
+  const {
+    state: chatState,
+    joinBroadcast,
+    leaveBroadcast,
+    updateSettings,
+    setBroadcastLive
+  } = useChat();
+
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -149,6 +158,44 @@ function StudioInterface() {
       fetchBroadcast();
     }
   }, [broadcastSlug]);
+
+  // Auto-manage chat when broadcast status changes
+  useEffect(() => {
+    if (broadcast && broadcast.hostUser) {
+      if (isLive) {
+        // Automatically join chat when broadcast goes live
+        if (!chatState.currentBroadcast || chatState.currentBroadcast !== broadcast.id) {
+          console.log('🎤 Broadcast went live - activating chat:', broadcast.id);
+          joinBroadcast(broadcast.id, {
+            id: broadcast.hostUser.id,
+            username: `${broadcast.hostUser.firstName} ${broadcast.hostUser.lastName}`,
+            role: 'host',
+            isOnline: true,
+            isTyping: false,
+            lastSeen: new Date(),
+            messageCount: 0
+          });
+          
+          // Enable chat for listeners and set broadcast as live
+          setBroadcastLive(true, {
+            id: broadcast.id,
+            title: broadcast.title,
+            startTime: new Date()
+          });
+          
+          toast.success('📻 Chat is now live for listeners!');
+        }
+        
+      } else {
+        // Update broadcast status to offline when broadcast ends
+        if (chatState.isBroadcastLive) {
+          console.log('📻 Broadcast ended - updating chat status');
+          setBroadcastLive(false);
+          toast.info('📻 Broadcast ended. Chat remains open for discussion.');
+        }
+      }
+    }
+  }, [isLive, broadcast, joinBroadcast, setBroadcastLive, chatState.currentBroadcast, chatState.isBroadcastLive]);
 
   // Initialize audio monitoring
   useEffect(() => {
@@ -246,9 +293,6 @@ function StudioInterface() {
       if (response.ok) {
         const data = await response.json();
         setBroadcast(data);
-        if (data.status === "LIVE" && data.startTime) {
-          // startTime is managed by studio context now
-        }
       } else {
         toast.error("Failed to load broadcast");
       }
@@ -916,14 +960,14 @@ function StudioInterface() {
                     </div>
                   )}
                   <Soundboard
-                    isLive={true} // Always enable for testing
+                    isLive={true}
                     onSoundPlay={(sound) => {
-                      console.log("Sound playing:", sound);
-                      // Could trigger audio playback through WebAudio API
+                      console.log("🔊 Sound playing:", sound.name, sound);
+                      toast.success(`🎵 Playing: ${sound.name}`);
                     }}
                     onSoundStop={(soundId) => {
-                      console.log("Sound stopped:", soundId);
-                      // Could stop audio playback
+                      console.log("⏹️ Sound stopped:", soundId);
+                      toast.info(`⏹️ Sound stopped`);
                     }}
                   />
                 </TabsContent>
@@ -969,35 +1013,31 @@ function StudioInterface() {
                     isLive={isLive}
                     hostId={broadcast.hostUser.id}
                     broadcastId={broadcast.id}
-                    onMessageSend={(message, type) => {
-                      console.log("Message sent:", message, type);
-                      // Only show toast for important announcements
+                    onMessageSend={async (message, type) => {
+                      console.log("💬 Message sent:", message, type);
+                      
                       if (type === "announcement") {
-                        if (isLive) {
-                          toast.success(
-                            "📢 Announcement sent to all listeners"
-                          );
-                        } else {
-                          toast.success(
-                            "🧪 Test: Announcement would be sent to listeners"
-                          );
-                        }
+                        toast.success(
+                          isLive
+                            ? "📢 Announcement sent to all listeners"
+                            : "🧪 Test: Announcement ready"
+                        );
                       }
-                      // Could send message via WebSocket to all listeners
+                      
+                      // Message sending is now handled by the EnhancedChat component via chat context
+                      console.log("Message sent via chat context:", {
+                        broadcastId: broadcast.id,
+                        message,
+                        type,
+                        timestamp: new Date().toISOString(),
+                      });
                     }}
-                    onUserAction={(userId, action) => {
-                      console.log("User action:", userId, action);
-                      // Only show toast for significant moderation actions
-                      if (action === "ban") {
-                        if (isLive) {
-                          toast.success("🚫 User banned successfully");
-                        } else {
-                          toast.success(
-                            "🧪 Test: User would be banned in live mode"
-                          );
-                        }
-                      }
-                      // Could send moderation action via API
+                    onUserAction={async (userId, action) => {
+                      console.log("👤 User action:", userId, action);
+                      
+                      // Moderation is now handled by the EnhancedChat component via chat context
+                      console.log("🛡️ User moderation action:", userId, action);
+                      // The EnhancedChat component will handle the actual moderation via Socket.IO
                     }}
                   />
                 </TabsContent>
@@ -1015,10 +1055,12 @@ export default function StudioPage() {
   const broadcastSlug = params.slug as string;
 
   return (
-    <BroadcastProvider isBroadcaster={true}>
-      <BroadcastStudioProvider broadcastId={broadcastSlug}>
-        <StudioInterface />
-      </BroadcastStudioProvider>
-    </BroadcastProvider>
+    <ChatProvider>
+      <BroadcastProvider isBroadcaster={true}>
+        <BroadcastStudioProvider broadcastId={broadcastSlug}>
+          <StudioInterface />
+        </BroadcastStudioProvider>
+      </BroadcastProvider>
+    </ChatProvider>
   );
 }

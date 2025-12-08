@@ -17,7 +17,7 @@ import { Filter, Search } from "lucide-react";
 import {
   fetchAudiobookSearch,
   getFavoriteAudiobooks,
-} from "@/frontend/app/audiobooks/actions";
+} from "@/app/audiobooks/actions";
 import { useToast } from "@/hooks/use-toast";
 
 interface Audiobook {

@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
-import { saveAudiobookProgress } from "@/frontend/app/audiobooks/actions";
+import { saveAudiobookProgress } from "@/app/audiobooks/actions";
 
 interface AudiobookPlayerProps {
   title: string;

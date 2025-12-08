@@ -8,7 +8,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Play, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toggleFavoritePodcast } from "@/frontend/app/podcasts/actions";
+import { toggleFavoritePodcast } from "@/app/podcasts/actions";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 

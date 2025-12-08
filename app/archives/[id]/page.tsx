@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { getArchiveById } from "@/frontend/app/archives/actions";
+import { getArchiveById } from "@/app/archives/actions";
 import { ArchivePlayer } from "@/components/archives/archive-player";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

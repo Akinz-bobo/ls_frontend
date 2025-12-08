@@ -62,7 +62,8 @@ export function ChatWidget({
     minimizeChat, 
     maximizeChat, 
     clearUnread,
-    likeMessage 
+    likeMessage,
+    setBroadcastLive
   } = useChat()
 
   const [newMessage, setNewMessage] = useState('')
@@ -73,6 +74,7 @@ export function ChatWidget({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const chatWidgetRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -81,12 +83,35 @@ export function ChatWidget({
 
   const hasJoinedRef = useRef(false)
 
-  // Set broadcast live status
+  // Sync broadcast live status when isLive prop changes
   useEffect(() => {
-    if (state.socket) {
-      state.socket.emit('set-broadcast-status', { broadcastId, isLive })
+    if (broadcastId && typeof isLive === 'boolean') {
+      console.log(`📻 ChatWidget: Setting broadcast ${broadcastId} status to ${isLive ? 'LIVE' : 'OFFLINE'}`)
+      
+      // Only update if status actually changed
+      if (state.isBroadcastLive !== isLive) {
+        setBroadcastLive(isLive, isLive ? {
+          id: broadcastId,
+          title: 'Live Broadcast',
+          startTime: new Date()
+        } : undefined)
+        
+        // Show notification when broadcast status changes
+        if (isLive) {
+          toast.success('🎤 Broadcast is now LIVE! Join the conversation.')
+          
+          // Auto-open chat when broadcast goes live (if closed)
+          if (!state.isChatOpen) {
+            setTimeout(() => {
+              toggleChat()
+            }, 1000) // Delay to allow user to see the notification first
+          }
+        } else {
+          toast.info('📻 Broadcast ended. Chat remains open for discussion.')
+        }
+      }
     }
-  }, [broadcastId, isLive, state.socket])
+  }, [broadcastId, isLive, setBroadcastLive, state.isBroadcastLive, state.isChatOpen, toggleChat])
 
   // Join broadcast when component mounts
   useEffect(() => {
@@ -118,6 +143,25 @@ export function ChatWidget({
       clearUnread()
     }
   }, [state.isChatOpen])
+
+  // Click outside to close chat
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (chatWidgetRef.current && !chatWidgetRef.current.contains(event.target as Node)) {
+        if (state.isChatOpen) {
+          toggleChat()
+        }
+      }
+    }
+
+    // Only add listener when chat is open
+    if (state.isChatOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }
+  }, [state.isChatOpen, toggleChat])
 
   const handleSendMessage = () => {
     if (!newMessage.trim() || !state.isConnected) return
@@ -158,12 +202,6 @@ export function ChatWidget({
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSendMessage()
-    }
-  }
 
   const handleCallIn = () => {
     // TODO: Implement call-in functionality
@@ -224,18 +262,21 @@ export function ChatWidget({
   }
 
   return (
-    <div className={cn(
-      'fixed z-50 transition-all duration-300',
-      getPositionClasses(),
-      className
-    )}>
+    <div 
+      ref={chatWidgetRef}
+      className={cn(
+        'fixed z-50 transition-all duration-300',
+        getPositionClasses(),
+        className
+      )}>
       {/* Chat Toggle Button (when minimized) */}
       {!state.isChatOpen && (
         <Button
           onClick={toggleChat}
           className={cn(
-            "w-16 h-16 rounded-full shadow-lg relative",
-            state.unreadCount > 0 && "animate-bounce"
+            "w-16 h-16 rounded-full shadow-lg relative transition-all",
+            state.unreadCount > 0 && "animate-bounce",
+            state.isBroadcastLive && "ring-4 ring-red-300 ring-opacity-75 animate-pulse"
           )}
         >
           <MessageCircle className="h-6 w-6" />
@@ -277,8 +318,28 @@ export function ChatWidget({
                 )}
               </CardTitle>
               <Badge variant="outline" className="text-xs">
-                {state.users.length}
+                {state.users.length} users
               </Badge>
+              {/* Connection Status */}
+              {state.isConnected ? (
+                <Badge variant="default" className="bg-green-500 text-xs">
+                  🔴 Connected
+                </Badge>
+              ) : (
+                <Badge variant="destructive" className="text-xs">
+                  🔴 Connecting...
+                </Badge>
+              )}
+              {/* Broadcast Status */}
+              {state.isBroadcastLive ? (
+                <Badge variant="default" className="bg-red-500 animate-pulse text-xs">
+                  🎤 LIVE
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-xs">
+                  📻 Offline
+                </Badge>
+              )}
             </div>
             
             <div className="flex items-center gap-1">
@@ -515,7 +576,7 @@ export function ChatWidget({
                       }
                       value={newMessage}
                       onChange={(e) => handleInputChange(e.target.value)}
-                      onKeyPress={handleKeyPress}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                       disabled={!state.isConnected || !state.isBroadcastLive}
                       maxLength={state.chatSettings.maxMessageLength}
                       className="flex-1"

@@ -11,9 +11,9 @@ import { cn } from "@/lib/utils";
 import {
   toggleArchiveFavorite,
   trackArchivePlay,
-} from "@/frontend/app/archives/actions";
+} from "@/app/archives/actions";
 import { useToast } from "@/hooks/use-toast";
-import type { ArchiveData } from "@/frontend/app/archives/actions";
+import type { ArchiveData } from "@/app/archives/actions";
 
 interface ArchiveCardProps {
   archive: ArchiveData;

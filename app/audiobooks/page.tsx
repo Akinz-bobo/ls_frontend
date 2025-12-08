@@ -3,7 +3,7 @@ import { AudiobookList } from "@/components/audiobook/audiobook-list";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { prisma } from "@/lib/prisma";
-import { getFavoriteAudiobooks } from "@/frontend/app/audiobooks/actions";
+import { getFavoriteAudiobooks } from "@/app/audiobooks/actions";
 
 // This is a server component that fetches the initial data
 async function AudiobooksContent() {

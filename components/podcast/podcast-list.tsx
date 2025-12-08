@@ -15,7 +15,7 @@ import { Filter, Search } from "lucide-react";
 import {
   fetchPodcastSearch,
   getFavoritePodcasts,
-} from "@/frontend/app/podcasts/actions";
+} from "@/app/podcasts/actions";
 import { useToast } from "@/hooks/use-toast";
 
 interface Podcast {

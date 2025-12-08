@@ -12,9 +12,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Filter, Search } from "lucide-react";
-import { searchArchives } from "@/frontend/app/archives/actions";
+import { searchArchives } from "@/app/archives/actions";
 import { useToast } from "@/hooks/use-toast";
-import type { ArchiveData } from "@/frontend/app/archives/actions";
+import type { ArchiveData } from "@/app/archives/actions";
 
 interface ArchivesListProps {
   initialArchives: ArchiveData[];
