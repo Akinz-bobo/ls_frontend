@@ -13,6 +13,7 @@ try {
 
 /** @type {import('./frontend/node_modules/next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -26,6 +27,9 @@ const nextConfig = {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
+  },
+  generateBuildId: async () => {
+    return 'build-' + Date.now()
   },
 };
 
