@@ -111,7 +111,7 @@ export function BroadcastProvider({
   useEffect(() => {
     if (!realtimeClient) {
       console.log("🔗 Initializing RealtimeClient");
-      const client = new RealtimeClient("http://localhost:3001");
+      const client = new RealtimeClient();
       setRealtimeClient(client);
 
       return () => {

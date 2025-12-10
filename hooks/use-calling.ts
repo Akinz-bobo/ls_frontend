@@ -39,9 +39,7 @@ export function useCalling({ broadcastId, callerInfo, autoConnect = true }: UseC
     if (!broadcastId || !autoConnect) return
 
     // Initialize realtime client
-    realtimeClient.current = new RealtimeClient(
-      process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3002'
-    )
+    realtimeClient.current = new RealtimeClient()
 
     // Setup event listeners
     const socket = realtimeClient.current.getSocket()
@@ -209,9 +207,7 @@ export function useCalling({ broadcastId, callerInfo, autoConnect = true }: UseC
   // Manually connect (if autoConnect is false)
   const connect = useCallback(() => {
     if (!realtimeClient.current && broadcastId) {
-      realtimeClient.current = new RealtimeClient(
-        process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3002'
-      )
+      realtimeClient.current = new RealtimeClient()
     }
   }, [broadcastId])
 
@@ -273,9 +269,7 @@ export function useCallQueue(broadcastId: string) {
     if (!broadcastId) return
 
     // Initialize realtime client
-    realtimeClient.current = new RealtimeClient(
-      process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3002'
-    )
+    realtimeClient.current = new RealtimeClient()
 
     const socket = realtimeClient.current.getSocket()
 

@@ -26,16 +26,29 @@ export class RealtimeClient {
   private socket: Socket
   private serverUrl: string
 
-  constructor(serverUrl = 'http://localhost:3001') {
+  constructor(serverUrl?: string) {
+    // Auto-detect server URL based on environment
+    if (!serverUrl) {
+      if (typeof window !== 'undefined') {
+        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:'
+        const hostname = window.location.hostname
+        const port = hostname === 'localhost' ? ':3001' : ''
+        serverUrl = `${protocol}//${hostname}${port}`
+      } else {
+        serverUrl = 'http://localhost:3001'
+      }
+    }
+    
     this.serverUrl = serverUrl
     this.socket = io(serverUrl, {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'],
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 3,
+      reconnectionAttempts: 5,
       reconnectionDelay: 2000,
       forceNew: false,
-      timeout: 10000
+      timeout: 20000,
+      upgrade: true
     })
     
     // Add connection debugging
