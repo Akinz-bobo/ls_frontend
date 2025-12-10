@@ -387,14 +387,14 @@ function LivePlayerInterface() {
       url: streamUrl
     };
     
-    if (navigator.share) {
+    if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share(shareData);
         console.log('📤 Broadcast shared successfully');
       } catch (error) {
         console.log('📤 Share cancelled by user');
       }
-    } else {
+    } else if (typeof navigator !== 'undefined') {
       // Fallback: copy to clipboard
       try {
         await navigator.clipboard.writeText(streamUrl);
@@ -430,7 +430,7 @@ function LivePlayerInterface() {
   const effectiveConnectionState = getConnectionState();
   
   // Network status simulation (remove in production - this shows "offline" issue)
-  const networkStatus = navigator.onLine ? 'online' : 'offline';
+  const networkStatus = typeof navigator !== 'undefined' && navigator.onLine ? 'online' : 'offline';
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border shadow-lg">
