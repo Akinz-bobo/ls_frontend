@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { WS_URL } from "@/utils/config";
 
 export async function GET() {
   try {
@@ -122,7 +123,7 @@ export async function GET() {
       staff: liveBroadcast.staff,
       guests: liveBroadcast.guests,
       banner: liveBroadcast.banner,
-      streamUrl: `${process.env.NEXT_PUBLIC_REALTIME_SERVER_URL || "http://http://radiostation-backend-ruuhuz-3d7a30-109-123-240-242.traefik.me"}/stream/broadcast/${liveBroadcast.id}/stream.mp3`,
+      streamUrl: `${process.env.NEXT_PUBLIC_REALTIME_SERVER_URL || WS_URL} /stream/broadcast/${liveBroadcast.id}/stream.mp3`,
     };
 
     return NextResponse.json(programInfo);

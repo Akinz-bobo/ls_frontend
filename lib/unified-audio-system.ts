@@ -1,6 +1,7 @@
 // Unified Audio System for Live Radio Broadcasting
 // Consolidates all audio processing, mixing, and streaming functionality
 
+import { WS_URL } from "@/utils/config";
 import { io, Socket } from "socket.io-client";
 
 export interface AudioSource {
@@ -111,19 +112,15 @@ export class UnifiedAudioSystem {
   private async connectToServer(): Promise<void> {
     return new Promise((resolve) => {
       try {
-        this.socket = io(
-          process.env.NEXT_PUBLIC_WS_URL ||
-            "http://radiostation-backend-ruuhuz-3d7a30-109-123-240-242.traefik.me",
-          {
-            transports: ["websocket"],
-            autoConnect: true,
-            timeout: 10000,
-            reconnection: true,
-            reconnectionAttempts: 5,
-            reconnectionDelay: 2000,
-            forceNew: false,
-          }
-        );
+        this.socket = io(process.env.NEXT_PUBLIC_WS_URL || WS_URL, {
+          transports: ["websocket"],
+          autoConnect: true,
+          timeout: 10000,
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 2000,
+          forceNew: false,
+        });
 
         this.socket.on("connect", () => {
           console.log("🔗 Connected to TypeScript realtime server");
@@ -814,18 +811,14 @@ export class UnifiedAudioListener {
 
   private async connectToServer(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      this.socket = io(
-        process.env.NEXT_PUBLIC_WS_URL ||
-          "http://radiostation-backend-ruuhuz-3d7a30-109-123-240-242.traefik.me",
-        {
-          transports: ["websocket"],
-          timeout: 10000,
-          reconnection: true,
-          reconnectionAttempts: this.maxReconnectAttempts,
-          reconnectionDelay: 2000,
-          forceNew: false,
-        }
-      );
+      this.socket = io(process.env.NEXT_PUBLIC_WS_URL || WS_URL, {
+        transports: ["websocket"],
+        timeout: 10000,
+        reconnection: true,
+        reconnectionAttempts: this.maxReconnectAttempts,
+        reconnectionDelay: 2000,
+        forceNew: false,
+      });
 
       const timeout = setTimeout(() => {
         reject(new Error("Connection timeout"));

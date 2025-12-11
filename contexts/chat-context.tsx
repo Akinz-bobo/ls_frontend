@@ -1,5 +1,6 @@
 "use client";
 
+import { WS_URL } from "@/utils/config";
 import React, {
   createContext,
   useContext,
@@ -370,9 +371,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize WebSocket connection
   useEffect(() => {
-    const wsUrl =
-      process.env.NEXT_PUBLIC_WS_URL ||
-      "http://radiostation-backend-ruuhuz-3d7a30-109-123-240-242.traefik.me";
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || WS_URL;
     const socket = io(wsUrl, {
       transports: ["websocket", "polling"],
       autoConnect: true,
@@ -891,9 +890,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     // Load chat history from backend
     try {
-      const wsUrl =
-        process.env.NEXT_PUBLIC_WS_URL ||
-        "http://radiostation-backend-ruuhuz-3d7a30-109-123-240-242.traefik.me";
+      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || WS_URL;
       const response = await fetch(
         `${wsUrl}/chat/${broadcastId}/history?limit=100`
       );

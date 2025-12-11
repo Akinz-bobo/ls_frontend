@@ -1,3 +1,4 @@
+import { WS_URL } from "@/utils/config";
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
@@ -18,15 +19,11 @@ export function useWebSocket(options: UseWebSocketOptions) {
     if (!options.broadcastId) return;
 
     // Initialize socket connection to unified audio server
-    const socket = io(
-      process.env.NEXT_PUBLIC_WS_URL ||
-        "http://radiostation-backend-ruuhuz-3d7a30-109-123-240-242.traefik.me",
-      {
-        transports: ["websocket", "polling"],
-        timeout: 10000,
-        forceNew: true,
-      }
-    );
+    const socket = io(process.env.NEXT_PUBLIC_WS_URL || WS_URL, {
+      transports: ["websocket", "polling"],
+      timeout: 10000,
+      forceNew: true,
+    });
 
     socketRef.current = socket;
 

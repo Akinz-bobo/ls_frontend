@@ -1,3 +1,4 @@
+import { WS_URL } from "@/utils/config";
 import { io, Socket } from "socket.io-client";
 
 export interface BroadcastInfo {
@@ -36,9 +37,7 @@ export class RealtimeClient {
         const port = hostname === "localhost" ? ":3001" : "";
         serverUrl = `${protocol}//${hostname}${port}`;
       } else {
-        serverUrl =
-          process.env.STREAM_SERVER_URL ||
-          "http://radiostation-backend-ruuhuz-3d7a30-109-123-240-242.traefik.me";
+        serverUrl = process.env.STREAM_SERVER_URL || WS_URL;
       }
     }
 

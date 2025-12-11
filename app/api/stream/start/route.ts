@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { WS_URL } from "@/utils/config";
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
 
     // Generate stream URL and key
     const streamKey = `stream_${broadcastId}_${Date.now()}`;
-    const streamUrl = `ws://http://radiostation-backend-ruuhuz-3d7a30-109-123-240-242.traefik.me/stream/${streamKey}`;
+    const streamUrl = `wss:${WS_URL}/stream/${streamKey}`;
 
     // Update broadcast status
     await prisma.liveBroadcast.update({
