@@ -13,6 +13,7 @@ export function LiveKitStudioControls() {
 
   const startBroadcast = async () => {
     try {
+      console.log('🎙️ Starting broadcast...');
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -22,14 +23,16 @@ export function LiveKitStudioControls() {
         },
       });
 
+      console.log('🎤 Got microphone stream, publishing track...');
       await localParticipant.publishTrack(stream.getAudioTracks()[0], {
         name: 'microphone',
         source: Track.Source.Microphone,
       });
 
+      console.log('✅ Audio track published successfully');
       setIsPublishing(true);
     } catch (error) {
-      console.error('Failed to start broadcast:', error);
+      console.error('❌ Failed to start broadcast:', error);
     }
   };
 

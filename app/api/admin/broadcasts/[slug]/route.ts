@@ -28,8 +28,12 @@ const updateBroadcastSchema = z.object({
 export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await params;
+    
+    // Check if slug is a UUID (ID) or actual slug
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
+    
     const broadcast = await prisma.liveBroadcast.findUnique({
-      where: { slug },
+      where: isUUID ? { id: slug } : { slug },
       include: {
         hostUser: {
           select: {

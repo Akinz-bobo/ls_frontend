@@ -3,6 +3,7 @@
 import { useEffect, useCallback } from "react";
 import { useLiveKitBroadcast } from "@/contexts/broadcast";
 import { useChat } from "@/contexts/chat";
+import { useBroadcastStore } from "@/stores/broadcast-store";
 import { toast } from "sonner";
 import type { Broadcast } from "../types";
 
@@ -19,6 +20,7 @@ export function useStudioIntegration(
 ) {
   const broadcastContext = useLiveKitBroadcast();
   const { state: chatState, joinBroadcast, setBroadcastLive } = useChat();
+  const { setBroadcast, setLiveKit, updateBroadcastStatus } = useBroadcastStore();
 
   // Initialize studio when broadcast is available
   useEffect(() => {
@@ -70,28 +72,20 @@ export function useStudioIntegration(
             : undefined
         );
         
-        // Update broadcast status in database
-        const updateBroadcastStatus = async () => {
-          try {
-            const response = await fetch(`/api/admin/broadcasts/${broadcast.slug}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                status: contextIsLive ? 'LIVE' : 'READY'
-              })
-            });
-            
-            if (response.ok) {
-              console.log('✅ Broadcast status updated to:', contextIsLive ? 'LIVE' : 'READY');
-            } else {
-              console.error('❌ Failed to update broadcast status');
-            }
-          } catch (error) {
-            console.error('❌ Error updating broadcast status:', error);
-          }
-        };
+        // Update store and sync with database
+        if (contextIsLive) {
+          setBroadcast({ ...broadcast, status: 'LIVE' });
+          setLiveKit({
+            url: broadcastContext?.studio?.getStreamUrl(),
+            token: undefined, // Token is managed by LiveKit internally
+            roomName: broadcast.id
+          });
+        } else {
+          setBroadcast({ ...broadcast, status: 'SCHEDULED' });
+        }
         
-        updateBroadcastStatus();
+        // Update status in database
+        updateBroadcastStatus(broadcast.slug, contextIsLive ? 'LIVE' : 'READY');
       }
     }
   }, [

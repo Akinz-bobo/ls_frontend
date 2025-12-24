@@ -2,6 +2,7 @@ import { useEffect, Dispatch } from 'react';
 import { SocketService } from '../services/socket-service';
 import { ChatAction } from '../state/chat-actions';
 import { ChatMessage, ChatUser, ChatState } from '../types';
+import { useBroadcastStore } from '@/stores/broadcast-store';
 import { toast } from 'sonner';
 
 export function useSocketEvents(
@@ -9,11 +10,12 @@ export function useSocketEvents(
   dispatch: Dispatch<ChatAction>,
   state: ChatState
 ) {
+  const { setBroadcast, setCurrentShow } = useBroadcastStore();
+
   useEffect(() => {
     const socket = socketService.getSocket();
     if (!socket) return;
 
-    // Connection events
     const handleConnect = () => {
       dispatch({ type: 'SET_CONNECTED', payload: true });
       console.log('🔗 Chat connected to server');
@@ -33,7 +35,6 @@ export function useSocketEvents(
       toast.success('Chat reconnected successfully');
     };
 
-    // Message events
     const handleNewMessage = (data: any) => {
       const message: ChatMessage = {
         id: data.id || Date.now().toString(),
@@ -87,7 +88,6 @@ export function useSocketEvents(
       });
     };
 
-    // User events
     const handleUserJoined = (data: any) => {
       const user: ChatUser = {
         id: data.user.id,
@@ -106,29 +106,33 @@ export function useSocketEvents(
       dispatch({ type: 'REMOVE_USER', payload: data.user.id });
     };
 
-    // Typing events
     const handleUserTyping = (data: any) => {
+      console.log('👀 User typing event received:', data);
       dispatch({
         type: 'SET_USER_TYPING',
         payload: {
           userId: data.userId,
           username: data.username,
-          isTyping: true,
+          broadcastId: state.currentBroadcast || '',
+          isTyping: data.isTyping,
         },
       });
 
-      setTimeout(() => {
-        dispatch({ type: 'CLEAR_TYPING', payload: data.userId });
-      }, 5000);
+      if (data.isTyping) {
+        setTimeout(() => {
+          dispatch({ type: 'CLEAR_TYPING', payload: data.userId });
+        }, 5000);
+      }
     };
 
-    const handleUserStoppedTyping = (data: any) => {
-      dispatch({ type: 'CLEAR_TYPING', payload: data.userId });
-    };
-
-    // Broadcast events
     const handleBroadcastStatusUpdate = (data: any) => {
       dispatch({ type: 'SET_BROADCAST_LIVE', payload: data.isLive });
+      
+      // Update global store
+      if (data.broadcast) {
+        setBroadcast({ ...data.broadcast, status: data.isLive ? 'LIVE' : 'READY' });
+        setCurrentShow(data.isLive ? data.broadcast.title : 'No live broadcast');
+      }
       
       if (data.isLive) {
         toast.success('🎤 Broadcast is now LIVE! Chat activated.');
@@ -137,7 +141,6 @@ export function useSocketEvents(
       }
     };
 
-    // Error events
     const handleChatError = (error: any) => {
       console.error('🚨 Chat error:', error);
       toast.error(error.error || 'Chat error occurred');
@@ -152,8 +155,7 @@ export function useSocketEvents(
     socket.on('chat:message_moderated', handleMessageModerated);
     socket.on('user-joined', handleUserJoined);
     socket.on('user-left', handleUserLeft);
-    socket.on('user-typing', handleUserTyping);
-    socket.on('user-stopped-typing', handleUserStoppedTyping);
+    socket.on('chat:typing', handleUserTyping);
     socket.on('broadcast-status-updated', handleBroadcastStatusUpdate);
     socket.on('chat-error', handleChatError);
     socket.on('message-error', handleChatError);
@@ -168,12 +170,11 @@ export function useSocketEvents(
       socket.off('chat:message_moderated', handleMessageModerated);
       socket.off('user-joined', handleUserJoined);
       socket.off('user-left', handleUserLeft);
-      socket.off('user-typing', handleUserTyping);
-      socket.off('user-stopped-typing', handleUserStoppedTyping);
+      socket.off('chat:typing', handleUserTyping);
       socket.off('broadcast-status-updated', handleBroadcastStatusUpdate);
       socket.off('chat-error', handleChatError);
       socket.off('message-error', handleChatError);
       socket.off('moderation-error', handleChatError);
     };
-  }, [socketService, dispatch, state.currentUser?.id]);
+  }, [socketService, dispatch, state.currentUser?.id, setBroadcast, setCurrentShow]);
 }

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/auth-context";
-import { useBroadcastData } from "./live-player/hooks/use-broadcast-data";
+import { useBroadcastStore } from "@/stores/broadcast-store";
 import { PlayButton } from "./live-player/components/play-button";
 import { VolumeControl } from "./live-player/components/volume-control";
 import { BroadcastInfo } from "./live-player/components/broadcast-info";
@@ -15,56 +15,59 @@ import { ScheduleSheet } from "./live-player/components/schedule-sheet";
 import { ChatToggle } from "./live-player/components/chat-toggle";
 import { LiveKitListener } from "./live-player/components/livekit-listener";
 
-interface LivePlayerProps {
-  broadcastId?: string;
-}
-
-function LivePlayerInterface({ broadcastId }: LivePlayerProps) {
+function LivePlayerInterface() {
   const { user } = useAuth();
-  const { state: broadcastState } = useBroadcastData(broadcastId);
+  const {
+    currentBroadcast,
+    upcomingBroadcast,
+    currentShow,
+    streamUrl,
+    schedule,
+    liveKit,
+  } = useBroadcastStore();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [volume, setVolume] = useState(80);
   const [isMuted, setIsMuted] = useState(false);
-  const [liveKitToken, setLiveKitToken] = useState<string>('');
+  const [liveKitToken, setLiveKitToken] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
-  const isLive = !!broadcastState.currentBroadcast;
+  const isLive = currentBroadcast?.status === "LIVE";
 
   // Get LiveKit token when broadcast is live
   useEffect(() => {
-    if (isLive && broadcastState.currentBroadcast) {
+    if (isLive && currentBroadcast) {
       const fetchToken = async () => {
         try {
-          const response = await fetch('/api/livekit/token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+          const response = await fetch("/api/livekit/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               userId: `listener-${Date.now()}`,
-              roomName: `broadcast-${broadcastState.currentBroadcast.slug}`,
-              userName: user?.email || 'Anonymous Listener',
-              role: 'listener'
-            })
+              roomName: `broadcast-${currentBroadcast.slug || currentBroadcast.id}`,
+              userName: user?.email || "Anonymous Listener",
+              role: "listener",
+            }),
           });
-          
+
           const data = await response.json();
           setLiveKitToken(data.token);
         } catch (error) {
-          console.error('Failed to get LiveKit token:', error);
-          setError('Failed to connect to live stream');
+          console.error("Failed to get LiveKit token:", error);
+          setError("Failed to connect to live stream");
         }
       };
 
       fetchToken();
     } else {
-      setLiveKitToken('');
+      setLiveKitToken("");
       setIsPlaying(false);
     }
-  }, [isLive, broadcastState.currentBroadcast, user]);
+  }, [isLive, currentBroadcast, user]);
 
   const togglePlay = async () => {
     if (!isLive || !liveKitToken) {
-      setError('No live broadcast available');
+      setError("No live broadcast available");
       return;
     }
 
@@ -79,7 +82,7 @@ function LivePlayerInterface({ broadcastId }: LivePlayerProps) {
     setIsMuted(!isMuted);
   };
 
-  const connectionState = isPlaying ? 'connected' : 'disconnected';
+  const connectionState = isPlaying ? "connected" : "disconnected";
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border shadow-lg">
@@ -94,11 +97,15 @@ function LivePlayerInterface({ broadcastId }: LivePlayerProps) {
         {/* LiveKit Audio Listener */}
         {isPlaying && isLive && liveKitToken && (
           <LiveKitListener
-            serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_SERVER_URL || 'ws://localhost:7880'}
+            serverUrl={
+              liveKit.url ||
+              process.env.NEXT_PUBLIC_LIVEKIT_SERVER_URL ||
+              "ws://localhost:7880"
+            }
             token={liveKitToken}
             onConnectionChange={(connected) => {
               if (!connected && isPlaying) {
-                setError('Connection lost');
+                setError("Connection lost");
                 setIsPlaying(false);
               } else {
                 setError(null);
@@ -113,58 +120,58 @@ function LivePlayerInterface({ broadcastId }: LivePlayerProps) {
         <div className="md:hidden">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center space-x-3 flex-1 min-w-0">
-              <PlayButton 
-                isPlaying={isPlaying} 
-                isLoading={isLoading} 
-                onToggle={togglePlay} 
-                size="sm" 
+              <PlayButton
+                isPlaying={isPlaying}
+                isLoading={isLoading}
+                onToggle={togglePlay}
+                size="sm"
               />
-              <BroadcastInfo 
-                currentBroadcast={broadcastState.currentBroadcast}
-                upcomingBroadcast={broadcastState.upcomingBroadcast}
-                currentShow={broadcastState.currentShow}
+              <BroadcastInfo
+                currentBroadcast={currentBroadcast}
+                upcomingBroadcast={upcomingBroadcast}
+                currentShow={currentShow}
                 isLive={isLive}
                 size="sm"
               />
             </div>
             <div className="flex items-center space-x-2 flex-shrink-0">
-              <VolumeControl 
+              <VolumeControl
                 volume={volume}
                 isMuted={isMuted}
                 onVolumeChange={handleVolumeChange}
                 onMuteToggle={handleMuteToggle}
                 className="w-8 h-8"
               />
-              <ShareButton 
-                streamUrl={broadcastState.streamUrl}
-                currentBroadcast={broadcastState.currentBroadcast}
+              <ShareButton
+                streamUrl={streamUrl}
+                currentBroadcast={currentBroadcast}
                 size="sm"
               />
-              <ChatToggle 
-                broadcastId={broadcastState.currentBroadcast?.id}
-                size="sm"
-              />
+              <ChatToggle size="sm" />
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-2 mb-1">
-            <VolumeControl 
+            <VolumeControl
               volume={volume}
               isMuted={isMuted}
               onVolumeChange={handleVolumeChange}
               onMuteToggle={handleMuteToggle}
               className="flex-1"
             />
-            <ScheduleSheet schedule={broadcastState.schedule} size="sm" />
+            <ScheduleSheet schedule={schedule} size="sm" />
           </div>
-          
+
           <div className="flex items-center justify-between">
-            <ConnectionStatus connectionState={connectionState} isLive={isLive} />
-            <AudioVisualizer 
-              isPlaying={isPlaying} 
-              audioLevel={isPlaying ? 50 : 0} 
-              barCount={3} 
-              size="sm" 
+            <ConnectionStatus
+              connectionState={connectionState}
+              isLive={isLive}
+            />
+            <AudioVisualizer
+              isPlaying={isPlaying}
+              audioLevel={isPlaying ? 50 : 0}
+              barCount={3}
+              size="sm"
             />
           </div>
         </div>
@@ -172,23 +179,26 @@ function LivePlayerInterface({ broadcastId }: LivePlayerProps) {
         {/* Desktop Layout */}
         <div className="hidden md:flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <PlayButton 
-              isPlaying={isPlaying} 
-              isLoading={isLoading} 
-              onToggle={togglePlay} 
+            <PlayButton
+              isPlaying={isPlaying}
+              isLoading={isLoading}
+              onToggle={togglePlay}
             />
             <div>
-              <BroadcastInfo 
-                currentBroadcast={broadcastState.currentBroadcast}
-                upcomingBroadcast={broadcastState.upcomingBroadcast}
-                currentShow={broadcastState.currentShow}
+              <BroadcastInfo
+                currentBroadcast={currentBroadcast}
+                upcomingBroadcast={upcomingBroadcast}
+                currentShow={currentShow}
                 isLive={isLive}
               />
-              <ConnectionStatus connectionState={connectionState} isLive={isLive} />
+              <ConnectionStatus
+                connectionState={connectionState}
+                isLive={isLive}
+              />
             </div>
           </div>
 
-          <VolumeControl 
+          <VolumeControl
             volume={volume}
             isMuted={isMuted}
             onVolumeChange={handleVolumeChange}
@@ -198,19 +208,17 @@ function LivePlayerInterface({ broadcastId }: LivePlayerProps) {
 
           <div className="flex items-center">
             <div className="hidden lg:block mr-4">
-              <AudioVisualizer 
-                isPlaying={isPlaying} 
-                audioLevel={isPlaying ? 50 : 0} 
+              <AudioVisualizer
+                isPlaying={isPlaying}
+                audioLevel={isPlaying ? 50 : 0}
               />
             </div>
-            <ShareButton 
-              streamUrl={broadcastState.streamUrl}
-              currentBroadcast={broadcastState.currentBroadcast}
+            <ShareButton
+              streamUrl={streamUrl}
+              currentBroadcast={currentBroadcast}
             />
-            <ChatToggle 
-              broadcastId={broadcastState.currentBroadcast?.id}
-            />
-            <ScheduleSheet schedule={broadcastState.schedule} />
+            <ChatToggle />
+            <ScheduleSheet schedule={schedule} />
           </div>
         </div>
       </div>
@@ -218,6 +226,6 @@ function LivePlayerInterface({ broadcastId }: LivePlayerProps) {
   );
 }
 
-export default function LivePlayer({ broadcastId }: LivePlayerProps) {
-  return <LivePlayerInterface broadcastId={broadcastId} />;
+export default function LivePlayer() {
+  return <LivePlayerInterface />;
 }

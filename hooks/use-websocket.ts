@@ -1,6 +1,7 @@
 import { WS_URL } from "@/utils/config";
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
+import { useBroadcastStore } from "@/stores/broadcast-store";
 
 interface UseWebSocketOptions {
   broadcastId?: string;
@@ -14,11 +15,11 @@ export function useWebSocket(options: UseWebSocketOptions) {
   const [isConnected, setIsConnected] = useState(false);
   const [listenerCount, setListenerCount] = useState(0);
   const socketRef = useRef<Socket | null>(null);
+  const { setStreamUrl, setBroadcast } = useBroadcastStore();
 
   useEffect(() => {
     if (!options.broadcastId) return;
 
-    // Initialize socket connection to unified audio server
     const socket = io(process.env.NEXT_PUBLIC_WS_URL || WS_URL, {
       transports: ["websocket", "polling"],
       timeout: 10000,
@@ -31,7 +32,6 @@ export function useWebSocket(options: UseWebSocketOptions) {
       setIsConnected(true);
       console.log("WebSocket connected to unified audio server");
 
-      // Join broadcast room
       socket.emit("join-broadcast", options.broadcastId, {
         userId: options.userId,
         location: { city: "Studio", country: "Local", countryCode: "LC" },
@@ -55,13 +55,16 @@ export function useWebSocket(options: UseWebSocketOptions) {
     });
 
     socket.on("broadcast-info", (data) => {
+      // Update store with broadcast info
+      if (data.streamUrl) setStreamUrl(data.streamUrl);
+      if (data.broadcast) setBroadcast(data.broadcast);
       options.onMessage?.(data);
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [options.broadcastId, options.userId]);
+  }, [options.broadcastId, options.userId, setStreamUrl, setBroadcast]);
 
   const sendChatMessage = (message: string, messageType: string = "user") => {
     if (socketRef.current && options.broadcastId) {

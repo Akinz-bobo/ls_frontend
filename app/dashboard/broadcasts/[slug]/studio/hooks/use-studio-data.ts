@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { toast } from "sonner"
+import { useBroadcastStore } from "@/stores/broadcast-store"
 import type { Broadcast } from "../types"
 
 export function useStudioData(broadcastSlug: string) {
   const [broadcast, setBroadcast] = useState<Broadcast | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const { setBroadcast: setStoreBroadcast } = useBroadcastStore()
 
   const fetchBroadcast = useCallback(async () => {
     try {
@@ -14,6 +16,8 @@ export function useStudioData(broadcastSlug: string) {
       if (response.ok) {
         const data = await response.json()
         setBroadcast(data)
+        // Update the Zustand store with the broadcast data
+        setStoreBroadcast(data)
       } else {
         toast.error("Failed to load broadcast")
       }
@@ -23,7 +27,7 @@ export function useStudioData(broadcastSlug: string) {
     } finally {
       setIsLoading(false)
     }
-  }, [broadcastSlug])
+  }, [broadcastSlug, setStoreBroadcast])
 
   useEffect(() => {
     if (broadcastSlug) {
@@ -42,6 +46,8 @@ export function useStudioData(broadcastSlug: string) {
       if (response.ok) {
         const updatedBroadcast = await response.json()
         setBroadcast(updatedBroadcast)
+        // Update the Zustand store with the updated broadcast
+        setStoreBroadcast(updatedBroadcast)
         return updatedBroadcast
       } else {
         const errorData = await response.json()
@@ -51,7 +57,7 @@ export function useStudioData(broadcastSlug: string) {
       console.error("Error updating broadcast:", error)
       throw error
     }
-  }, [broadcastSlug])
+  }, [broadcastSlug, setStoreBroadcast])
 
   return {
     broadcast,

@@ -21,16 +21,23 @@ export function LiveKitListener({
   const [room, setRoom] = useState<Room | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isConnectingRef = useRef(false);
+  const connectionAttemptRef = useRef(0);
 
   useEffect(() => {
-    if (!serverUrl || !token || isConnectingRef.current) return;
+    if (!serverUrl || !token) return;
+
+    const attemptId = ++connectionAttemptRef.current;
+    let currentRoom: Room | null = null;
+    let isMounted = true;
 
     const connectRoom = async () => {
-      if (isConnectingRef.current) return;
+      if (!isMounted || isConnectingRef.current || attemptId !== connectionAttemptRef.current) return;
       isConnectingRef.current = true;
 
+      console.log('🔄 Attempting LiveKit connection...');
+
       try {
-        const newRoom = new Room({
+        currentRoom = new Room({
           adaptiveStream: true,
           dynacast: true,
           publishDefaults: {
@@ -38,40 +45,63 @@ export function LiveKitListener({
           },
         } as RoomOptions);
         
-        newRoom.on('connected', () => {
+        currentRoom.on('connected', () => {
+          if (!isMounted) return;
           console.log('🎧 Connected to LiveKit room as listener');
+          console.log('📊 Room info:', {
+            name: currentRoom!.name,
+            participants: currentRoom!.remoteParticipants.size,
+            localParticipant: currentRoom!.localParticipant.identity
+          });
           onConnectionChange(true);
-          // Clear any reconnection attempts
           if (reconnectTimeoutRef.current) {
             clearTimeout(reconnectTimeoutRef.current);
             reconnectTimeoutRef.current = null;
           }
         });
-
-        newRoom.on('disconnected', (reason) => {
-          console.log('🎧 Disconnected from LiveKit room:', reason);
-          onConnectionChange(false);
-          
-          // Only attempt reconnection if it wasn't intentional
-          if (reason !== 'CLIENT_INITIATED' && !reconnectTimeoutRef.current) {
-            reconnectTimeoutRef.current = setTimeout(() => {
-              isConnectingRef.current = false;
-              connectRoom();
-            }, 2000);
-          }
+        
+        currentRoom.on('participantConnected', (participant) => {
+          console.log('👥 Participant joined:', participant.identity, 'Role:', participant.metadata);
+        });
+        
+        currentRoom.on('participantDisconnected', (participant) => {
+          console.log('🚪 Participant left:', participant.identity);
         });
 
-        newRoom.on('trackSubscribed', (track, publication, participant) => {
+        currentRoom.on('disconnected', (reason) => {
+          console.log('🎧 Disconnected from LiveKit room:', reason);
+          if (isMounted) {
+            onConnectionChange(false);
+          }
+          isConnectingRef.current = false;
+        });
+
+        currentRoom.on('trackSubscribed', (track, publication, participant) => {
+          console.log('📡 Track subscribed:', {
+            kind: track.kind,
+            source: track.source,
+            participant: participant.identity,
+            trackSid: track.sid
+          });
+          
           if (track.kind === 'audio') {
             console.log('🎵 Audio track received from:', participant.identity);
+            console.log('📊 Track details:', {
+              trackSid: track.sid,
+              source: track.source,
+              muted: track.isMuted
+            });
+            
             const audioElement = track.attach();
             audioElement.volume = volume / 100;
             audioElement.muted = muted;
             audioElement.autoplay = true;
             document.body.appendChild(audioElement);
             
-            // Clean up when track ends
+            console.log('🔊 Audio element created and attached');
+            
             track.on('ended', () => {
+              console.log('🛑 Audio track ended from:', participant.identity);
               if (audioElement.parentNode) {
                 audioElement.parentNode.removeChild(audioElement);
               }
@@ -79,33 +109,40 @@ export function LiveKitListener({
           }
         });
 
-        await newRoom.connect(serverUrl, token);
-        setRoom(newRoom);
+        currentRoom.on('trackUnsubscribed', (track, publication, participant) => {
+          console.log('📡 Track unsubscribed:', {
+            kind: track.kind,
+            participant: participant.identity
+          });
+        });
+
+        await currentRoom.connect(serverUrl, token);
+        if (isMounted) {
+          setRoom(currentRoom);
+        }
+        isConnectingRef.current = false;
       } catch (error) {
         console.error('Failed to connect to LiveKit:', error);
-        onConnectionChange(false);
-        isConnectingRef.current = false;
-        
-        // Retry connection after delay
-        if (!reconnectTimeoutRef.current) {
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connectRoom();
-          }, 3000);
+        if (isMounted) {
+          onConnectionChange(false);
         }
+        isConnectingRef.current = false;
       }
     };
 
     connectRoom();
 
     return () => {
+      isMounted = false;
       isConnectingRef.current = false;
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
-      if (room) {
-        room.disconnect();
+      if (currentRoom) {
+        currentRoom.disconnect();
       }
+      setRoom(null);
     };
   }, [serverUrl, token]);
 
@@ -116,13 +153,11 @@ export function LiveKitListener({
     room.remoteParticipants.forEach(participant => {
       participant.audioTrackPublications.forEach(publication => {
         if (publication.track) {
-          const audioElements = publication.track.getTrackElements();
-          audioElements.forEach(element => {
-            if (element instanceof HTMLAudioElement) {
-              element.volume = volume / 100;
-              element.muted = muted;
-            }
-          });
+          const audioElement = publication.track.attach();
+          if (audioElement instanceof HTMLAudioElement) {
+            audioElement.volume = volume / 100;
+            audioElement.muted = muted;
+          }
         }
       });
     });

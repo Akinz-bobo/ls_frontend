@@ -39,8 +39,12 @@ export class MessageService {
       return;
     }
 
-    const event = isTyping ? 'typing-start' : 'typing-stop';
-    this.socketService.emit(event, currentBroadcast, currentUser.username);
+    console.log('📤 Sending typing event:', { isTyping, broadcastId: currentBroadcast, username: currentUser.username });
+    
+    this.socketService.emit('chat:typing', {
+      broadcastId: currentBroadcast,
+      isTyping
+    });
   }
 
   editMessage(messageId: string, newContent: string, currentBroadcast?: string): void {

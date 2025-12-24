@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useChat } from "@/contexts/chat"
+import { useBroadcastStore } from "@/stores/broadcast-store"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -42,18 +43,22 @@ import {
   Clock
 } from "lucide-react"
 
-
 interface EnhancedChatProps {
   isLive: boolean
   isBroadcastLive?: boolean
   hostId: string
-  broadcastId: string
-  broadcastTitle?: string
   onMessageSend: (message: string, type?: string) => void
   onUserAction: (userId: string, action: string) => void
 }
 
-export function EnhancedChat({ isLive, isBroadcastLive, hostId, broadcastId, broadcastTitle, onMessageSend, onUserAction }: EnhancedChatProps) {
+export function EnhancedChat({
+  isLive,
+  isBroadcastLive,
+  hostId,
+  onMessageSend,
+  onUserAction,
+}: EnhancedChatProps) {
+  const { currentBroadcast } = useBroadcastStore()
   const {
     state,
     sendMessage,
@@ -63,7 +68,7 @@ export function EnhancedChat({ isLive, isBroadcastLive, hostId, broadcastId, bro
     moderateMessage,
     moderateUser,
     likeMessage,
-    updateSettings
+    updateSettings,
   } = useChat()
 
   const [newMessage, setNewMessage] = useState("")
@@ -89,18 +94,21 @@ export function EnhancedChat({ isLive, isBroadcastLive, hostId, broadcastId, bro
   const chatInputRef = useRef<HTMLInputElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
+  const broadcastId = currentBroadcast?.id
+  const broadcastTitle = currentBroadcast?.title
+
   // Join broadcast when component mounts
   useEffect(() => {
     if (broadcastId && hostId && !state.currentBroadcast) {
-      console.log('🎤 Joining broadcast chat:', broadcastId)
+      console.log("🎤 Joining broadcast chat:", broadcastId)
       joinBroadcast(broadcastId, {
         id: hostId,
-        username: 'Radio Host',
-        role: 'host',
+        username: "Radio Host",
+        role: "host",
         isOnline: true,
         isTyping: false,
         lastSeen: new Date(),
-        messageCount: 0
+        messageCount: 0,
       })
     }
 
@@ -109,11 +117,24 @@ export function EnhancedChat({ isLive, isBroadcastLive, hostId, broadcastId, bro
         leaveBroadcast()
       }
     }
-  }, [broadcastId, hostId])
+  }, [broadcastId, hostId, joinBroadcast, leaveBroadcast, state.currentBroadcast])
+
+  // Debug logging
+  useEffect(() => {
+    console.log("📊 Chat Debug Info:", {
+      broadcastId,
+      hostId,
+      isConnected: state.isConnected,
+      currentBroadcast: state.currentBroadcast,
+      messageCount: state.messages.length,
+      isLive,
+      isBroadcastLive
+    })
+  }, [broadcastId, hostId, state.isConnected, state.currentBroadcast, state.messages.length, isLive, isBroadcastLive])
 
   // Auto-scroll to bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [state.messages])
 
   // Update chat settings when studio settings change
@@ -131,7 +152,7 @@ export function EnhancedChat({ isLive, isBroadcastLive, hostId, broadcastId, bro
 
     sendMessage(newMessage.trim(), selectedMessageType)
     onMessageSend(newMessage.trim(), selectedMessageType)
-    
+
     setNewMessage("")
     setIsTyping(false)
     sendTyping(false)
@@ -140,7 +161,7 @@ export function EnhancedChat({ isLive, isBroadcastLive, hostId, broadcastId, bro
 
   const handleInputChange = (value: string) => {
     setNewMessage(value)
-    
+
     // Handle typing indicators
     if (value.length > 0 && !isTyping) {
       setIsTyping(true)
@@ -164,48 +185,55 @@ export function EnhancedChat({ isLive, isBroadcastLive, hostId, broadcastId, bro
     }
   }
 
-  const handleMessageAction = (messageId: string, action: 'like' | 'dislike' | 'pin' | 'unpin' | 'delete' | 'highlight') => {
+  const handleMessageAction = (
+    messageId: string,
+    action: "like" | "dislike" | "pin" | "unpin" | "delete" | "highlight"
+  ) => {
     switch (action) {
-      case 'like':
+      case "like":
         likeMessage(messageId)
         break
-      case 'pin':
-      case 'delete':
-      case 'highlight':
+      case "pin":
+      case "delete":
+      case "highlight":
         moderateMessage(messageId, action)
         break
-      case 'unpin':
-        moderateMessage(messageId, 'pin') // Use 'pin' action to toggle unpin
+      case "unpin":
+        // For unpin, we use the pin action (it should toggle)
+        moderateMessage(messageId, "pin")
         break
     }
   }
 
-  const handleUserAction = (userId: string, action: 'mute' | 'unmute' | 'ban' | 'unban' | 'timeout') => {
+  const handleUserAction = (
+    userId: string,
+    action: "mute" | "unmute" | "ban" | "unban" | "timeout"
+  ) => {
     moderateUser(userId, action)
     onUserAction(userId, action)
-    
+
     // Show confirmation toast
-    const user = state.users.find(u => u.id === userId)
+    const user = state.users.find((u) => u.id === userId)
     if (user) {
       switch (action) {
-        case 'ban':
+        case "ban":
           toast.success(`🚫 ${user.username} has been banned`)
           break
-        case 'unban':
+        case "unban":
           toast.success(`✅ ${user.username} has been unbanned`)
           break
-        case 'mute':
+        case "mute":
           toast.success(`🔇 ${user.username} has been muted`)
           break
-        case 'unmute':
+        case "unmute":
           toast.success(`🔊 ${user.username} has been unmuted`)
           break
-        case 'timeout':
+        case "timeout":
           toast.success(`⏰ ${user.username} has been timed out`)
           break
       }
     }
-    
+
     setSelectedUserId(null)
     setShowUserActions(false)
   }
@@ -238,8 +266,10 @@ export function EnhancedChat({ isLive, isBroadcastLive, hostId, broadcastId, bro
     }
   }
 
+  if (!broadcastId) return null
+
   const currentBroadcastMessages = state.messages.filter(
-    msg => msg.broadcastId === broadcastId
+    (msg) => msg.broadcastId === broadcastId
   )
 
   const filteredMessages = currentBroadcastMessages.filter(msg => {
@@ -253,8 +283,10 @@ export function EnhancedChat({ isLive, isBroadcastLive, hostId, broadcastId, bro
     return true
   })
 
-  const pinnedMessage = filteredMessages.find(msg => msg.isPinned)
-  const typingUsers = state.typingUsers.filter(typing => typing.broadcastId === broadcastId)
+  const pinnedMessage = filteredMessages.find((msg) => msg.isPinned)
+  const typingUsers = state.typingUsers.filter(
+    (typing) => typing.broadcastId === broadcastId
+  )
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -267,16 +299,22 @@ export function EnhancedChat({ isLive, isBroadcastLive, hostId, broadcastId, bro
                 <Pin className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-600 mt-1 flex-shrink-0" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-xs sm:text-sm truncate">{pinnedMessage.username}</span>
-                    <Badge variant="outline" className="text-xs flex-shrink-0">Pinned</Badge>
+                    <span className="font-medium text-xs sm:text-sm truncate">
+                      {pinnedMessage.username}
+                    </span>
+                    <Badge variant="outline" className="text-xs flex-shrink-0">
+                      Pinned
+                    </Badge>
                   </div>
-                  <p className="text-xs sm:text-sm text-gray-700 break-words">{pinnedMessage.content}</p>
+                  <p className="text-xs sm:text-sm text-gray-700 break-words">
+                    {pinnedMessage.content}
+                  </p>
                 </div>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleMessageAction(pinnedMessage.id, 'unpin')}
+                onClick={() => handleMessageAction(pinnedMessage.id, "unpin")}
                 className="h-5 w-5 sm:h-6 sm:w-6 p-0 flex-shrink-0"
               >
                 <Pin className="h-3 w-3 text-yellow-600" />
@@ -344,264 +382,246 @@ export function EnhancedChat({ isLive, isBroadcastLive, hostId, broadcastId, bro
           {/* Moderation Panel */}
           {showModerationPanel && (
             <div className="p-3 sm:p-4 bg-gray-50 rounded-lg space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Slow Mode</label>
-                  <Select value={state.chatSettings.slowMode.toString()} onValueChange={(value) => updateSettings({ ...state.chatSettings, slowMode: parseInt(value) })}>
-                    <SelectTrigger className="h-7 sm:h-8 text-xs">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  <label className="text-xs font-medium mb-1 block">Message Type</label>
+                  <Select value={selectedMessageType} onValueChange={setSelectedMessageType}>
+                    <SelectTrigger className="h-8">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="0">Off</SelectItem>
-                      <SelectItem value="5">5 seconds</SelectItem>
-                      <SelectItem value="10">10 seconds</SelectItem>
-                      <SelectItem value="30">30 seconds</SelectItem>
-                      <SelectItem value="60">1 minute</SelectItem>
+                      <SelectItem value="user">User Message</SelectItem>
+                      <SelectItem value="host">Host Message</SelectItem>
+                      <SelectItem value="announcement">Announcement</SelectItem>
+                      <SelectItem value="system">System Message</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Auto-Moderation</label>
-                  <Button
-                    variant={state.chatSettings.autoModeration ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => updateSettings({ ...state.chatSettings, autoModeration: !state.chatSettings.autoModeration })}
-                    className="w-full h-7 sm:h-8 text-xs"
-                  >
-                    {state.chatSettings.autoModeration ? 'On' : 'Off'}
-                  </Button>
-                </div>
-                <div className="space-y-1 sm:col-span-2 lg:col-span-1">
-                  <label className="text-xs font-medium">Search</label>
+                <div className="flex-1">
+                  <label className="text-xs font-medium mb-1 block">Search Messages</label>
                   <div className="relative">
-                    <Search className="absolute left-2 top-1.5 h-3 w-3 text-gray-400" />
+                    <Search className="absolute left-2 top-2 h-3 w-3 text-gray-400" />
                     <Input
-                      placeholder="Search messages..."
+                      placeholder="Search..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="h-7 sm:h-8 pl-7 text-xs"
+                      className="pl-7 h-8 text-xs"
                     />
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Filters</label>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full h-7 sm:h-8 text-xs"
-                  >
-                    <Filter className="h-3 w-3 mr-1" />
-                    <span className="hidden sm:inline">Configure</span>
-                  </Button>
+              </div>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="show-users"
+                    checked={chatFilters.showUsers}
+                    onCheckedChange={(checked) => setChatFilters(prev => ({ ...prev, showUsers: checked }))}
+                  />
+                  <label htmlFor="show-users" className="text-xs">Users</label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="show-mods"
+                    checked={chatFilters.showModerators}
+                    onCheckedChange={(checked) => setChatFilters(prev => ({ ...prev, showModerators: checked }))}
+                  />
+                  <label htmlFor="show-mods" className="text-xs">Mods</label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="show-system"
+                    checked={chatFilters.showSystem}
+                    onCheckedChange={(checked) => setChatFilters(prev => ({ ...prev, showSystem: checked }))}
+                  />
+                  <label htmlFor="show-system" className="text-xs">System</label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="hide-spam"
+                    checked={chatFilters.hideSpam}
+                    onCheckedChange={(checked) => setChatFilters(prev => ({ ...prev, hideSpam: checked }))}
+                  />
+                  <label htmlFor="hide-spam" className="text-xs">Hide Spam</label>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Chat Messages */}
-          <ScrollArea className="h-64 sm:h-96 pr-2 sm:pr-4">
-            <div className="space-y-2 sm:space-y-3">
+          {/* Messages Area */}
+          <ScrollArea className="h-64 sm:h-80 w-full border rounded-lg">
+            <div className="p-3 sm:p-4 space-y-3">
+              {/* Show connection status if not connected */}
+              {!state.isConnected && (
+                <div className="text-center py-8 text-gray-500">
+                  <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Connecting to chat...</p>
+                  <p className="text-xs mt-1">Broadcast ID: {broadcastId}</p>
+                </div>
+              )}
+              
+              {/* Show empty state if connected but no messages */}
+              {state.isConnected && filteredMessages.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No messages yet</p>
+                  <p className="text-xs mt-1">Be the first to send a message!</p>
+                </div>
+              )}
+              
               {filteredMessages.map((message) => {
-                const RoleIcon = getRoleIcon(message.messageType)
+                const isOwnMessage = message.userId === hostId
+                const isAnnouncement = message.messageType === "announcement"
+                const isHostMessage = message.messageType === "host"
+                const isSystemMessage = message.messageType === "system"
+
+                // Skip pinned messages in main flow (already shown at top)
+                if (message.isPinned) return null
+
                 return (
                   <div
                     key={message.id}
-                    className={`p-2 sm:p-3 rounded-lg transition-colors ${getMessageTypeColor(message.messageType)} ${
-                      message.isHighlighted ? 'ring-2 ring-blue-200' : ''
-                    } ${message.isModerated ? 'opacity-50' : ''}`}
+                    className={`p-2 sm:p-3 rounded-lg ${getMessageTypeColor(message.messageType)} ${
+                      message.isHighlighted ? 'ring-2 ring-blue-300' : ''
+                    }`}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
-                        <Avatar className="h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0">
-                          <AvatarFallback className="text-xs">
-                            {message.username.substring(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1 sm:gap-2 mb-1 flex-wrap">
-                            <span className={`font-medium text-xs sm:text-sm ${getRoleColor(message.messageType)} truncate`}>
-                              {message.username}
-                            </span>
-                            {RoleIcon && <RoleIcon className={`h-3 w-3 ${getRoleColor(message.messageType)} flex-shrink-0`} />}
-                            <span className="text-xs text-gray-500 flex-shrink-0">
-                              {message.timestamp.toLocaleTimeString()}
-                            </span>
-                            {message.isPinned && (
-                              <Pin className="h-3 w-3 text-yellow-600 flex-shrink-0" />
-                            )}
-                          </div>
-                          <p className="text-xs sm:text-sm text-gray-700 mb-2 break-words">{message.content}</p>
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <Avatar className="h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0">
+                        <AvatarFallback className={`text-xs ${getRoleColor(message.messageType)}`}>
+                          {message.username.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1 sm:gap-2 mb-1 flex-wrap">
+                          <span className={`text-xs sm:text-sm font-medium ${getRoleColor(message.messageType)}`}>
+                            {message.username}
+                          </span>
                           
-                          {/* Emoji Reactions */}
-                          {Object.keys(message.emojis).length > 0 && (
-                            <div className="flex items-center gap-1 mb-2">
-                              {Object.entries(message.emojis).map(([emoji, count]) => (
-                                <Badge key={emoji} variant="secondary" className="text-xs h-5">
-                                  {emoji} {count}
-                                </Badge>
-                              ))}
-                            </div>
+                          {/* Role Badge */}
+                          {(isHostMessage || message.messageType === 'moderator') && (
+                            <Badge variant="secondary" className="text-xs h-4">
+                              {isHostMessage ? (
+                                <>
+                                  <Crown className="h-2 w-2 mr-1" />
+                                  Host
+                                </>
+                              ) : (
+                                <>
+                                  <Shield className="h-2 w-2 mr-1" />
+                                  Mod
+                                </>
+                              )}
+                            </Badge>
                           )}
-
-                          {/* Message Actions */}
-                          <div className="flex items-center gap-1 sm:gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleMessageAction(message.id, 'like')}
-                              className="h-5 sm:h-6 px-1 sm:px-2 text-xs"
-                            >
-                              <Heart className={`h-3 w-3 ${message.isLiked ? 'fill-red-500 text-red-500' : ''} ${message.likes > 0 ? 'mr-1' : ''}`} />
-                              {message.likes > 0 && <span className="hidden sm:inline">{message.likes}</span>}
-                            </Button>
-                            
-                            {message.messageType === 'user' && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleMessageAction(message.id, message.isPinned ? 'unpin' : 'pin')}
-                                  className="h-5 sm:h-6 px-1 sm:px-2 text-xs"
-                                >
-                                  <Pin className={`h-3 w-3 ${message.isPinned ? 'text-yellow-600' : ''}`} />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => moderateMessage(message.id, 'delete')}
-                                  className="h-5 sm:h-6 px-1 sm:px-2 text-xs text-red-600"
-                                >
-                                  <Flag className="h-3 w-3" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
+                          
+                          {isAnnouncement && (
+                            <Badge variant="destructive" className="text-xs h-4">
+                              <Megaphone className="h-2 w-2 mr-1" />
+                              Announcement
+                            </Badge>
+                          )}
+                          
+                          <span className="text-xs text-gray-500">
+                            {message.timestamp.toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                        
+                        <p className="text-xs sm:text-sm text-gray-900 break-words leading-relaxed">
+                          {message.content}
+                        </p>
+                        
+                        {/* Message Actions */}
+                        <div className="flex items-center gap-1 mt-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleMessageAction(message.id, 'like')}
+                            className="h-6 px-2 text-xs"
+                          >
+                            <Heart className="h-3 w-3 mr-1" />
+                            {message.likes || 0}
+                          </Button>
+                          
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleMessageAction(message.id, 'pin')}
+                            className="h-6 px-2 text-xs"
+                          >
+                            <Pin className="h-3 w-3" />
+                          </Button>
+                          
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleMessageAction(message.id, 'delete')}
+                            className="h-6 px-2 text-xs text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </div>
                       </div>
                     </div>
                   </div>
                 )
               })}
+              
+              {/* Typing Indicators in Messages Area */}
+              {typingUsers.length > 0 && (
+                <div className="flex items-center gap-2 text-gray-500 text-xs italic p-2">
+                  <div className="flex space-x-1">
+                    <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                  <span>
+                    {typingUsers.length === 1
+                      ? `${typingUsers[0].username} is typing...`
+                      : `${typingUsers.length} people are typing...`}
+                  </span>
+                </div>
+              )}
+              
               <div ref={messagesEndRef} />
             </div>
           </ScrollArea>
 
           {/* Message Input */}
           <div className="space-y-2">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <Select value={selectedMessageType} onValueChange={setSelectedMessageType}>
-                <SelectTrigger className="w-full sm:w-32 h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">Normal</SelectItem>
-                  <SelectItem value="announcement">
-                    <div className="flex items-center gap-2">
-                      <Megaphone className="h-3 w-3" />
-                      Announcement
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="host">Host Message</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <div className="flex-1 relative">
-                <Input
-                  ref={chatInputRef}
-                  placeholder={
-                    !state.isConnected 
-                      ? "Connecting..." 
-                      : !state.isBroadcastLive 
-                        ? "Offline - Messages when live" 
-                        : "Send message to listeners..."
+            <div className="flex gap-2">
+              <Input
+                ref={chatInputRef}
+                value={newMessage}
+                onChange={(e) => handleInputChange(e.target.value)}
+                placeholder="Type a message..."
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSendMessage()
                   }
-                  value={newMessage}
-                  onChange={(e) => handleInputChange(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                  disabled={!state.isConnected}
-                  className={`h-9 text-sm ${selectedMessageType === 'announcement' ? 'border-red-300' : ''}`}
-                />
-                {selectedMessageType === 'announcement' && (
-                  <Megaphone className="absolute right-3 top-2.5 h-4 w-4 text-red-500" />
-                )}
-              </div>
-              
+                }}
+                disabled={!state.isConnected}
+                className="flex-1"
+              />
               <Button
                 onClick={handleSendMessage}
                 disabled={!newMessage.trim() || !state.isConnected}
-                className={`h-9 px-3 ${selectedMessageType === 'announcement' ? 'bg-red-600 hover:bg-red-700' : ''}`}
+                size="sm"
               >
-                <Send className="h-3 w-3 sm:h-4 sm:w-4" />
+                <Send className="h-4 w-4" />
               </Button>
             </div>
             
-            <div className="flex items-center justify-between text-xs">
-              {selectedMessageType === 'announcement' && (
-                <p className="text-red-600">
-                  This message will be highlighted and sent to all listeners
-                </p>
-              )}
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${state.isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-                <span className="text-gray-500">
-                  {state.isConnected ? 'Connected' : 'Disconnected'}
-                </span>
+            {selectedMessageType !== 'user' && (
+              <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                Sending as: <span className="font-medium capitalize">{selectedMessageType}</span>
               </div>
-            </div>
+            )}
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Active Users */}
-      <Card>
-        <CardHeader className="pb-3 sm:pb-6">
-          <CardTitle className="flex items-center justify-between text-sm sm:text-base">
-            <span>Active Users ({state.users.length})</span>
-            <Badge variant="outline" className="text-xs">{state.users.filter(u => u.isOnline).length} active</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 sm:p-6">
-          <ScrollArea className="h-24 sm:h-32">
-            <div className="space-y-1 sm:space-y-2">
-              {state.users.slice(0, 10).map((user) => {
-                const RoleIcon = getRoleIcon(user.role)
-                return (
-                  <div key={user.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <Avatar className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0">
-                        <AvatarFallback className="text-xs">{user.username.substring(0, 2)}</AvatarFallback>
-                      </Avatar>
-                      <span className="text-xs sm:text-sm font-medium truncate">{user.username}</span>
-                      {RoleIcon && <RoleIcon className={`h-3 w-3 ${getRoleColor(user.role)} flex-shrink-0`} />}
-                      {!user.isOnline && <VolumeX className="h-3 w-3 text-gray-400 flex-shrink-0" />}
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {user.role === 'listener' && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleUserAction(user.id, 'mute')}
-                            className="h-5 w-5 sm:h-6 sm:w-6 p-0"
-                          >
-                            <VolumeX className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleUserAction(user.id, 'ban')}
-                            className="h-5 w-5 sm:h-6 sm:w-6 p-0 text-red-600"
-                          >
-                            <Ban className="h-3 w-3" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </ScrollArea>
         </CardContent>
       </Card>
     </div>

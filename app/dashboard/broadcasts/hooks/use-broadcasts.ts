@@ -1,43 +1,42 @@
-import { useState, useEffect } from "react"
+import { useState, useCallback } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useBroadcastStore } from '@/stores/broadcast-store'
 import { BroadcastService } from "../services"
 import type { Broadcast, StaffMember, Asset, Program, BroadcastFilters } from "../types"
 
 export function useBroadcasts(programIdFromUrl?: string | null) {
-  const [broadcasts, setBroadcasts] = useState<Broadcast[]>([])
-  const [staff, setStaff] = useState<StaffMember[]>([])
-  const [assets, setAssets] = useState<Asset[]>([])
-  const [programs, setPrograms] = useState<Program[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
+  const queryClient = useQueryClient()
+  const { setLoading } = useBroadcastStore()
+  
   const [filters, setFilters] = useState<BroadcastFilters>({
     status: "all",
     program: programIdFromUrl || "all",
     search: ""
   })
 
-  const loadData = async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
-      
-      const [broadcastsData, staffData, assetsData, programsData] = await Promise.all([
-        BroadcastService.fetchBroadcasts(filters.program === "all" ? undefined : filters.program),
-        BroadcastService.fetchStaff(),
-        BroadcastService.fetchAssets(),
-        BroadcastService.fetchPrograms()
-      ])
+  const { data: broadcasts = [], isLoading: broadcastsLoading } = useQuery({
+    queryKey: ['broadcasts', filters.program],
+    queryFn: () => BroadcastService.fetchBroadcasts(filters.program === "all" ? undefined : filters.program),
+    select: (data) => data.broadcasts
+  })
 
-      setBroadcasts(broadcastsData.broadcasts)
-      setStaff(staffData.staff || [])
-      setAssets(assetsData.assets || [])
-      setPrograms(programsData.programs || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load data')
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  const { data: staff = [] } = useQuery({
+    queryKey: ['staff'],
+    queryFn: () => BroadcastService.fetchStaff(),
+    select: (data) => data.staff || []
+  })
+
+  const { data: assets = [] } = useQuery({
+    queryKey: ['assets'],
+    queryFn: () => BroadcastService.fetchAssets(),
+    select: (data) => data.assets || []
+  })
+
+  const { data: programs = [] } = useQuery({
+    queryKey: ['programs'],
+    queryFn: () => BroadcastService.fetchPrograms(),
+    select: (data) => data.programs || []
+  })
 
   const filteredBroadcasts = broadcasts.filter(broadcast => {
     const matchesStatus = filters.status === "all" || broadcast.status === filters.status
@@ -51,19 +50,22 @@ export function useBroadcasts(programIdFromUrl?: string | null) {
     return matchesStatus && matchesProgram && matchesSearch
   })
 
-  useEffect(() => {
-    loadData()
-  }, [filters.program])
+  const refetch = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['broadcasts'] })
+    queryClient.invalidateQueries({ queryKey: ['staff'] })
+    queryClient.invalidateQueries({ queryKey: ['assets'] })
+    queryClient.invalidateQueries({ queryKey: ['programs'] })
+  }, [queryClient])
 
   return {
     broadcasts: filteredBroadcasts,
     staff,
     assets,
     programs,
-    isLoading,
-    error,
+    isLoading: broadcastsLoading,
+    error: null,
     filters,
     setFilters,
-    refetch: loadData
+    refetch
   }
 }

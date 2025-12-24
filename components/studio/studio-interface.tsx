@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useBroadcast } from "@/contexts/broadcast";
+import { useLiveKitBroadcast } from "@/contexts/broadcast";
 import { useAuth } from "@/contexts/auth-context";
 import { StudioHeader } from "./components/studio-header";
 import { AudioMixer } from "./components/audio-mixer";
@@ -18,7 +18,7 @@ export function StudioInterface({
   stationName,
 }: StudioInterfaceProps) {
   const { user } = useAuth();
-  const broadcast = useBroadcast();
+  const broadcast = useLiveKitBroadcast();
   const [isLoading, setIsLoading] = useState(false);
 
   // Initialize studio when component mounts
