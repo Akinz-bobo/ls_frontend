@@ -38,6 +38,7 @@ interface StudioInterfaceProps {
 
 function BroadcastControls({ broadcastId }: { broadcastId: string }) {
   const { localParticipant } = useLocalParticipant();
+  const room = useRoomContext();
   const { updateBroadcastStatus, setBroadcast, currentBroadcast } = useBroadcastStore();
   const [isPublishing, setIsPublishing] = useState(false);
   const tracks = useTracks([Track.Source.Microphone], {
@@ -58,45 +59,100 @@ function BroadcastControls({ broadcastId }: { broadcastId: string }) {
 
   const startBroadcast = async () => {
     try {
+      console.log('🎤 [Studio] Starting broadcast - checking room connection...');
+      
+      // Wait for room to be connected if it's not already
+      if (!room) {
+        throw new Error('Room not available');
+      }
+      
+      if (room.state !== 'connected') {
+        console.log('🎤 [Studio] Waiting for room to connect...');
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Room connection timeout')), 10000);
+          
+          const checkConnection = () => {
+            if (room.state === 'connected') {
+              clearTimeout(timeout);
+              resolve(true);
+            }
+          };
+          
+          room.on('connected', checkConnection);
+          checkConnection(); // Check immediately in case already connected
+        });
+      }
+      
+      console.log('🎤 [Studio] Room connected, enabling microphone...');
+      
       // Ensure AudioContext is resumed with user gesture
       if (typeof window !== 'undefined' && window.AudioContext) {
         const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
         if (audioContext.state === 'suspended') {
           await audioContext.resume();
+          console.log('🎤 [Studio] AudioContext resumed');
         }
       }
       
-      // Enable microphone with explicit track options to ensure proper track ID
+      // Enable microphone
       await localParticipant.setMicrophoneEnabled(true);
+      
+      // Wait for the track to be published
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const micTrack = localParticipant.getTrackPublication(Track.Source.Microphone);
+        if (micTrack && !micTrack.isMuted && micTrack.track) {
+          console.log('✅ [Studio] Microphone track published successfully:', {
+            trackSid: micTrack.trackSid,
+            isMuted: micTrack.isMuted,
+            isEnabled: micTrack.track.enabled
+          });
+          break;
+        }
+        
+        attempts++;
+        console.log(`🎤 [Studio] Waiting for microphone track... (${attempts}/${maxAttempts})`);
+      }
+      
+      if (attempts >= maxAttempts) {
+        throw new Error('Microphone track failed to publish after 5 seconds');
+      }
+      
       setIsPublishing(true);
       
-      // Update global broadcast status
+      // Update global broadcast status AFTER microphone is confirmed working
       await updateBroadcastStatus(broadcastId, 'LIVE');
       
-      // Set current broadcast in store
-      setBroadcast({
-        id: broadcastId,
-        slug: broadcastId,
-        title: 'Live Broadcast',
-        status: 'LIVE'
-      });
+      console.log('✅ [Studio] Broadcast started successfully');
     } catch (error) {
-      console.error("Failed to start broadcast:", error);
+      console.error("❌ [Studio] Failed to start broadcast:", error);
+      setIsPublishing(false);
+      try {
+        await localParticipant.setMicrophoneEnabled(false);
+      } catch (e) {
+        console.warn('Failed to disable microphone on error:', e);
+      }
     }
   };
 
   const stopBroadcast = async () => {
     try {
+      console.log('🎤 [Studio] Stopping broadcast - disabling microphone...');
+      
+      // Disable microphone (keep LiveKit connection)
       await localParticipant.setMicrophoneEnabled(false);
       setIsPublishing(false);
       
       // Update global broadcast status
       await updateBroadcastStatus(broadcastId, 'ENDED');
       
-      // Clear current broadcast from store
-      setBroadcast(null);
+      console.log('✅ [Studio] Broadcast stopped successfully');
     } catch (error) {
-      console.error("Failed to stop broadcast:", error);
+      console.error("❌ [Studio] Failed to stop broadcast:", error);
     }
   };
 

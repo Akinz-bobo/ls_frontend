@@ -1,60 +1,52 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useGlobalLiveKit } from '@/providers/global-livekit-provider';
 import { useBroadcastStore } from '@/stores/broadcast-store';
 
 export function useBroadcastDiscovery() {
-  const { activeBroadcasts } = useGlobalLiveKit();
   const { setBroadcast, setCurrentShow } = useBroadcastStore();
   const [liveBroadcasts, setLiveBroadcasts] = useState<any[]>([]);
-
-  // Listen for broadcast events
-  useEffect(() => {
-    const handleBroadcastLive = (event: CustomEvent) => {
-      const broadcast = event.detail;
-      setLiveBroadcasts([broadcast]);
-      setBroadcast(broadcast);
-      setCurrentShow(broadcast.title);
-    };
-
-    const handleBroadcastEnded = () => {
-      setLiveBroadcasts([]);
-      setBroadcast(null);
-      setCurrentShow('No live broadcast');
-    };
-
-    window.addEventListener('broadcast-live', handleBroadcastLive as EventListener);
-    window.addEventListener('broadcast-ended', handleBroadcastEnded as EventListener);
-
-    return () => {
-      window.removeEventListener('broadcast-live', handleBroadcastLive as EventListener);
-      window.removeEventListener('broadcast-ended', handleBroadcastEnded as EventListener);
-    };
-  }, [setBroadcast, setCurrentShow]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchBroadcastDetails = async () => {
-      if (activeBroadcasts.length === 0) {
-        setLiveBroadcasts([]);
-        return;
-      }
-
+    const checkForLiveBroadcast = async () => {
       try {
         const response = await fetch('/api/broadcasts/current');
         if (response.ok) {
           const data = await response.json();
+          
           if (data.isLive) {
+            console.log('📻 [Discovery] Found live broadcast:', data.title);
             setLiveBroadcasts([data]);
+            setBroadcast(data);
+            setCurrentShow(data.title);
+          } else {
+            console.log('📻 [Discovery] No live broadcast found');
+            setLiveBroadcasts([]);
+            setBroadcast(null);
+            setCurrentShow('No live broadcast');
           }
         }
       } catch (error) {
-        console.warn('Failed to fetch broadcast details:', error);
+        console.warn('Failed to check for live broadcast:', error);
+        setLiveBroadcasts([]);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchBroadcastDetails();
-  }, [activeBroadcasts]);
+    // Check immediately
+    checkForLiveBroadcast();
 
-  return { liveBroadcasts, hasLiveBroadcasts: liveBroadcasts.length > 0 };
+    // Poll every 10 seconds
+    const interval = setInterval(checkForLiveBroadcast, 10000);
+
+    return () => clearInterval(interval);
+  }, [setBroadcast, setCurrentShow]);
+
+  return { 
+    liveBroadcasts, 
+    hasLiveBroadcasts: liveBroadcasts.length > 0,
+    isLoading 
+  };
 }

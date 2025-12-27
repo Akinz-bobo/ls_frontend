@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AlertCircle, Play, Pause } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useBroadcastStore } from "@/stores/broadcast-store";
 import { useBroadcastDiscovery } from "@/hooks/use-broadcast-discovery";
 import { LiveKitListener } from "./live-player/components/livekit-listener";
+import { audioContextManager } from "@/utils/audio-context-manager";
 
 function LivePlayerInterface() {
   const { user } = useAuth();
@@ -15,13 +16,11 @@ function LivePlayerInterface() {
   const { liveBroadcasts, hasLiveBroadcasts } = useBroadcastDiscovery();
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [connectionAttempts, setConnectionAttempts] = useState(0);
-  const [isReconnecting, setIsReconnecting] = useState(false);
 
   // Use discovered broadcasts if current broadcast is not set
-  const activeBroadcast = currentBroadcast || (hasLiveBroadcasts ? liveBroadcasts[0] : null);
+  const activeBroadcast =
+    currentBroadcast || (hasLiveBroadcasts ? liveBroadcasts[0] : null);
   const isLive = activeBroadcast?.status === "LIVE" || activeBroadcast?.isLive;
-  const maxRetries = 3;
 
   const togglePlay = async () => {
     if (!isLive) {
@@ -30,61 +29,20 @@ function LivePlayerInterface() {
     }
 
     if (!isPlaying) {
-      // Reset connection attempts when starting fresh
-      setConnectionAttempts(0);
       setError(null);
-
-      // Initialize AudioContext with user gesture before connecting
-      try {
-        if (typeof window !== "undefined" && window.AudioContext) {
-          const audioContext = new (
-            window.AudioContext || (window as any).webkitAudioContext
-          )();
-          if (audioContext.state === "suspended") {
-            await audioContext.resume();
-            console.log("✅ AudioContext resumed for live player");
-          }
-        }
-      } catch (error) {
-        console.warn("⚠️ AudioContext initialization failed:", error);
-      }
+      // Initialize AudioContext with user gesture
+      await audioContextManager.initialize();
     }
 
     setIsPlaying(!isPlaying);
   };
 
   const handleConnectionChange = (connected: boolean) => {
-    if (!connected && isPlaying) {
-      setConnectionAttempts((prev) => prev + 1);
-
-      if (connectionAttempts < maxRetries) {
-        setIsReconnecting(true);
-        setError(
-          `Connection lost. Retrying... (${connectionAttempts + 1}/${maxRetries})`
-        );
-
-        // Auto-retry after a delay
-        setTimeout(
-          () => {
-            setIsReconnecting(false);
-            // Force re-render of LiveKitListener by toggling state
-            setIsPlaying(false);
-            setTimeout(() => setIsPlaying(true), 100);
-          },
-          2000 + connectionAttempts * 1000
-        ); // Increasing delay
-      } else {
-        setError(
-          "Connection failed after multiple attempts. Please try again."
-        );
-        setIsPlaying(false);
-        setConnectionAttempts(0);
-      }
-    } else if (connected) {
+    console.log("🔌 [LivePlayer] Connection change:", connected);
+    if (connected) {
       setError(null);
-      setConnectionAttempts(0);
-      setIsReconnecting(false);
     }
+    // Don't immediately show error on disconnect - let LiveKit try to reconnect first
   };
 
   if (!isLive) {
@@ -114,14 +72,9 @@ function LivePlayerInterface() {
               variant={isPlaying ? "secondary" : "default"}
               size="sm"
               className="flex items-center gap-2"
-              disabled={isReconnecting}
+              disabled={false}
             >
-              {isReconnecting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
-                  Reconnecting...
-                </>
-              ) : isPlaying ? (
+              {isPlaying ? (
                 <>
                   <Pause className="h-4 w-4" />
                   Leave Broadcast
@@ -148,15 +101,35 @@ function LivePlayerInterface() {
           </div>
         </div>
 
-        {isLive && isPlaying && !isReconnecting && (
+        {isLive && (
           <LiveKitListener
-            key={`listener-${connectionAttempts}`} // Force re-mount on retry
-            roomName={`broadcast-${activeBroadcast.slug || activeBroadcast.id}`}
-            userId={`listener-${Date.now()}`}
-            userName={user?.email || "Anonymous Listener"}
+            key={`listener-${activeBroadcast.id}`}
+            broadcastId={activeBroadcast.id}
+            userId={
+              user?.id
+                ? `${user.id}-listener`
+                : (() => {
+                    try {
+                      const key = `listener-id:${activeBroadcast.id}`;
+                      let id = sessionStorage.getItem(key);
+                      if (!id) {
+                        id = `listener-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                        sessionStorage.setItem(key, id);
+                      }
+                      return id;
+                    } catch (e) {
+                      return `listener-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                    }
+                  })()
+            }
+            userName={
+              user?.email || user?.name || `${user?.id}` || "Anonymous Listener"
+            }
             onConnectionChange={handleConnectionChange}
             volume={80}
             muted={false}
+            isPlaying={isPlaying}
+            onPlayingChange={setIsPlaying}
           />
         )}
       </div>

@@ -1,30 +1,56 @@
-'use client'
+"use client";
 
-import React from 'react'
-import { RoomProvider } from '@/providers/global-livekit-provider'
-import { StudioInterface } from './studio-interface'
+import React, { useEffect, useState } from "react";
+import { RoomProvider } from "@/providers/global-livekit-provider";
+import { StudioInterface } from "./studio-interface";
+import { useAuth } from "@/contexts/auth-context";
 
 interface BroadcastStudioInterfaceProps {
-  broadcastId: string
-  stationName: string
+  broadcastId: string;
+  stationName: string;
 }
 
-export function BroadcastStudioInterface({ 
-  broadcastId, 
-  stationName
+export function BroadcastStudioInterface({
+  broadcastId,
+  stationName,
 }: BroadcastStudioInterfaceProps) {
+  const { user } = useAuth();
+  const [hostUserId, setHostUserId] = useState<string>("");
+
+  useEffect(() => {
+    // Use authenticated user ID if available, otherwise create stable session ID
+    if (user?.id) {
+      setHostUserId(user.id);
+    } else {
+      // Create stable session ID stored in sessionStorage
+      const sessionKey = `host-session-${broadcastId}`;
+      let sessionId = sessionStorage.getItem(sessionKey);
+      if (!sessionId) {
+        sessionId = `host-${Date.now()}`;
+        sessionStorage.setItem(sessionKey, sessionId);
+      }
+      setHostUserId(sessionId);
+    }
+  }, [user, broadcastId]);
+
+  if (!hostUserId) {
+    return <div>Loading...</div>;
+  }
+
+  console.log("🎙️ [Studio] Initializing broadcast studio:", {
+    broadcastId,
+    hostUserId,
+    userName: user?.name || user?.email || stationName,
+  });
+
   return (
-    <RoomProvider 
-      roomId={`studio-${broadcastId}`}
-      roomName={`broadcast-${broadcastId}`}
-      userId={`host-${Date.now()}`}
-      userName={stationName}
+    <RoomProvider
+      broadcastId={broadcastId}
+      userId={hostUserId}
+      userName={user?.name || user?.email || stationName}
       role="broadcaster"
     >
-      <StudioInterface 
-        broadcastId={broadcastId}
-        stationName={stationName}
-      />
+      <StudioInterface broadcastId={broadcastId} stationName={stationName} />
     </RoomProvider>
-  )
+  );
 }

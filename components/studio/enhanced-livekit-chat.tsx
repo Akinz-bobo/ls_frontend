@@ -72,11 +72,44 @@ export function EnhancedLiveKitChat({
   const isHost = currentUser.role === "host";
   const isModerator = currentUser.role === "moderator" || isHost;
 
+  // Log chat initialization
+  useEffect(() => {
+    console.log('💬 [Chat] Initializing chat component:', {
+      broadcastId,
+      currentUser,
+      isLive,
+      roomConnected: !!room,
+      localParticipantId: localParticipant?.identity
+    });
+  }, [broadcastId, currentUser, isLive, room, localParticipant]);
+
+  // Log new chat messages
+  useEffect(() => {
+    if (chatMessages.length > 0) {
+      const latestMessage = chatMessages[chatMessages.length - 1];
+      console.log('💬 [Chat] New message received:', {
+        messageId: latestMessage.id,
+        from: latestMessage.from?.name,
+        fromIdentity: latestMessage.from?.identity,
+        message: latestMessage.message,
+        timestamp: latestMessage.timestamp,
+        totalMessages: chatMessages.length
+      });
+    }
+  }, [chatMessages]);
+
   // Send moderation action to all participants
   const sendModerationAction = async (action: ModerationAction) => {
-    if (!room || !isModerator) return;
+    if (!room || !isModerator) {
+      console.warn('⚠️ [Chat] Cannot send moderation action:', {
+        hasRoom: !!room,
+        isModerator
+      });
+      return;
+    }
 
     try {
+      console.log('📢 [Chat] Sending moderation action:', action);
       const encoder = new TextEncoder();
       const data = encoder.encode(
         JSON.stringify({
@@ -88,8 +121,9 @@ export function EnhancedLiveKitChat({
       );
 
       await room.localParticipant.publishData(data);
+      console.log('✅ [Chat] Moderation action sent successfully');
     } catch (error) {
-      console.error("Failed to send moderation action:", error);
+      console.error("❌ [Chat] Failed to send moderation action:", error);
     }
   };
 
@@ -473,7 +507,14 @@ export function EnhancedLiveKitChat({
                   placeholder="Type your message..."
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && e.currentTarget.value.trim()) {
-                      send(e.currentTarget.value);
+                      const message = e.currentTarget.value.trim();
+                      console.log('💬 [Chat] Sending message:', {
+                        from: currentUser.username,
+                        message,
+                        roomConnected: !!room,
+                        participantCount: room?.numParticipants
+                      });
+                      send(message);
                       e.currentTarget.value = "";
                     }
                   }}
@@ -483,7 +524,14 @@ export function EnhancedLiveKitChat({
                   onClick={(e) => {
                     const input = e.currentTarget.previousElementSibling as HTMLInputElement;
                     if (input?.value.trim()) {
-                      send(input.value);
+                      const message = input.value.trim();
+                      console.log('💬 [Chat] Sending message:', {
+                        from: currentUser.username,
+                        message,
+                        roomConnected: !!room,
+                        participantCount: room?.numParticipants
+                      });
+                      send(message);
                       input.value = "";
                     }
                   }}

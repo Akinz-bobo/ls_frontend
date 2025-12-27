@@ -122,22 +122,35 @@ export const useBroadcastStore = create<BroadcastStore>((set, get) => ({
   
   updateBroadcastStatus: async (slug: string, status: 'LIVE' | 'READY' | 'ENDED') => {
     try {
+      console.log('📡 [Broadcast] Updating broadcast status:', { slug, status });
+
       const response = await fetch(`/api/admin/broadcasts/${slug}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
       });
-      
+
       if (response.ok) {
         const updatedBroadcast = await response.json();
-        
+
+        console.log('✅ [Broadcast] Status update successful:', {
+          id: updatedBroadcast.id,
+          slug: updatedBroadcast.slug,
+          status: updatedBroadcast.status,
+          title: updatedBroadcast.title
+        });
+
         if (status === 'LIVE') {
           get().setBroadcast(updatedBroadcast);
           get().setCurrentShow(updatedBroadcast.title);
           // Notify all users about the live broadcast
           if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('broadcast-live', { 
-              detail: updatedBroadcast 
+            console.log('📢 [Broadcast] Dispatching broadcast-live event:', {
+              id: updatedBroadcast.id,
+              title: updatedBroadcast.title
+            });
+            window.dispatchEvent(new CustomEvent('broadcast-live', {
+              detail: updatedBroadcast
             }));
           }
         } else if (status === 'ENDED') {
@@ -145,18 +158,26 @@ export const useBroadcastStore = create<BroadcastStore>((set, get) => ({
           get().setCurrentShow('No live broadcast');
           // Notify all users broadcast ended
           if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('broadcast-ended', { 
-              detail: { broadcastId: slug } 
+            console.log('📢 [Broadcast] Dispatching broadcast-ended event:', { broadcastId: slug });
+            window.dispatchEvent(new CustomEvent('broadcast-ended', {
+              detail: { broadcastId: slug }
             }));
           }
         }
-        
-        console.log('✅ Broadcast status updated to:', status);
       } else {
-        throw new Error('Failed to update broadcast status');
+        const errorText = await response.text();
+        console.error('❌ [Broadcast] Status update failed:', {
+          status: response.status,
+          error: errorText
+        });
+        throw new Error(`Failed to update broadcast status: ${response.status}`);
       }
     } catch (error) {
-      console.error('❌ Error updating broadcast status:', error);
+      console.error('❌ [Broadcast] Error updating broadcast status:', {
+        slug,
+        status,
+        error: error instanceof Error ? error.message : error
+      });
       get().setError(error instanceof Error ? error.message : 'Failed to update broadcast status');
     }
   }

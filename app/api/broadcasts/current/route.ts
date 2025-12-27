@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { WS_URL } from "@/utils/config";
 
 export async function GET() {
   try {
-    // Get the current live broadcast with program information
+    // Find the current live broadcast
     const liveBroadcast = await prisma.liveBroadcast.findFirst({
-      where: {
-        status: "LIVE",
+      where: { 
+        status: "LIVE" 
       },
       include: {
         hostUser: {
@@ -18,28 +17,6 @@ export async function GET() {
             email: true,
           },
         },
-        banner: {
-          select: {
-            url: true,
-            originalName: true,
-          },
-        },
-        staff: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                username: true,
-                email: true,
-                profileImage: true,
-              },
-            },
-          },
-        },
-        guests: true,
-        // Include program/schedule information if available
         program: {
           select: {
             id: true,
@@ -50,125 +27,34 @@ export async function GET() {
         },
       },
       orderBy: {
-        startTime: "desc",
-      },
+        updatedAt: 'desc'
+      }
     });
 
     if (!liveBroadcast) {
-      // Check for any READY broadcasts that could go live
-      const readyBroadcast = await prisma.liveBroadcast.findFirst({
-        where: {
-          status: "READY",
-        },
-        include: {
-          hostUser: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-            },
-          },
-        },
-        orderBy: {
-          startTime: "asc",
-        },
-      });
-
-      if (readyBroadcast) {
-        return NextResponse.json({
-          isLive: false,
-          upcoming: {
-            id: readyBroadcast.id,
-            title: readyBroadcast.title,
-            description: readyBroadcast.description,
-            startTime: readyBroadcast.startTime,
-            host: `${readyBroadcast.hostUser.firstName} ${readyBroadcast.hostUser.lastName}`,
-          },
-          message: "Broadcast ready to go live",
-        });
-      }
-
-      return NextResponse.json({
-        isLive: false,
-        message: "No live broadcast currently active",
+      return NextResponse.json({ 
+        isLive: false, 
+        message: "No live broadcast available" 
       });
     }
-
-    // Get current track information (this would typically come from your audio system)
-    const currentTrack = {
-      title: "Jazz Café Sessions",
-      artist: "Various Artists",
-      duration: 240,
-      progress: Math.floor(Math.random() * 240),
-    };
-
-    // Simulate listener count
-    const listenerCount = Math.floor(Math.random() * 500) + 50;
-
-    const programInfo = {
-      id: liveBroadcast.id,
-      title: liveBroadcast.program?.title || liveBroadcast.title,
-      description:
-        liveBroadcast.program?.description || liveBroadcast.description,
-      host: `${liveBroadcast.hostUser.firstName} ${liveBroadcast.hostUser.lastName}`,
-      hostUser: liveBroadcast.hostUser,
-      genre: liveBroadcast.program?.genre || "General",
-      isLive: true,
-      status: "LIVE",
-      startTime: liveBroadcast.startTime,
-      endTime: liveBroadcast.endTime,
-      currentTrack,
-      listenerCount,
-      staff: liveBroadcast.staff,
-      guests: liveBroadcast.guests,
-      banner: liveBroadcast.banner,
-      streamUrl: `${process.env.NEXT_PUBLIC_SRS_URL || 'http://localhost:1985'}/live/${liveBroadcast.id}.m3u8`,
-    };
-
-    return NextResponse.json(programInfo);
-  } catch (error) {
-    console.error("Error fetching current program info:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch current program information" },
-      { status: 500 }
-    );
-  }
-}
-
-// Update current program information during broadcast
-export async function PUT(req: Request) {
-  try {
-    const { broadcastId, programInfo } = await req.json();
-
-    if (!broadcastId) {
-      return NextResponse.json(
-        { error: "Broadcast ID is required" },
-        { status: 400 }
-      );
-    }
-
-    // Update broadcast information
-    const updatedBroadcast = await prisma.liveBroadcast.update({
-      where: { id: broadcastId },
-      data: {
-        title: programInfo.title,
-        description: programInfo.description,
-        // Add any other fields that can be updated during broadcast
-      },
-    });
-
-    // In a real implementation, you would also update the WebSocket server
-    // to notify all connected listeners about the program info change
 
     return NextResponse.json({
-      message: "Program information updated successfully",
-      broadcast: updatedBroadcast,
+      isLive: true,
+      id: liveBroadcast.id,
+      title: liveBroadcast.title,
+      description: liveBroadcast.description,
+      status: liveBroadcast.status,
+      streamUrl: liveBroadcast.streamUrl,
+      liveKitUrl: liveBroadcast.liveKitUrl,
+      hostUser: liveBroadcast.hostUser,
+      program: liveBroadcast.program,
+      startTime: liveBroadcast.startTime,
+      updatedAt: liveBroadcast.updatedAt
     });
   } catch (error) {
-    console.error("Error updating program info:", error);
+    console.error("Get current broadcast error:", error);
     return NextResponse.json(
-      { error: "Failed to update program information" },
+      { error: "Failed to fetch current broadcast" },
       { status: 500 }
     );
   }
