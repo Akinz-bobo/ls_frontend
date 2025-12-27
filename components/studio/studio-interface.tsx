@@ -94,8 +94,14 @@ function BroadcastControls({ broadcastId }: { broadcastId: string }) {
         }
       }
       
-      // Enable microphone
-      await localParticipant.setMicrophoneEnabled(true);
+      // Enable microphone with high quality settings
+      await localParticipant.setMicrophoneEnabled(true, {
+        autoGainControl: true,
+        echoCancellation: true,
+        noiseSuppression: true,
+        sampleRate: 48000,
+        channelCount: 1,
+      });
       
       // Wait for the track to be published
       let attempts = 0;

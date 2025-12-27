@@ -239,6 +239,18 @@ export function GlobalLiveKitProvider({
             publishDefaults: {
               simulcast: false,
               stopMicTrackOnMute: false,
+              audioPreset: {
+                maxBitrate: 128000, // 128 kbps for high quality
+                priority: "high",
+              },
+            },
+            // Audio processing settings for continuous speech
+            audioCaptureDefaults: {
+              autoGainControl: true,
+              echoCancellation: true,
+              noiseSuppression: true,
+              sampleRate: 48000,
+              channelCount: 1,
             },
           });
 
