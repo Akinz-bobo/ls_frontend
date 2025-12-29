@@ -301,13 +301,13 @@ export function UnifiedBroadcastChat({
   const getRoleIcon = (messageType: string) => {
     switch (messageType) {
       case "host":
-        return <Crown className="h-3 w-3 text-yellow-500" />;
+        return <Crown className="h-3 w-3 text-yellow-500 dark:text-yellow-400" />;
       case "moderator":
-        return <Shield className="h-3 w-3 text-blue-500" />;
+        return <Shield className="h-3 w-3 text-blue-500 dark:text-blue-400" />;
       case "announcement":
-        return <Megaphone className="h-3 w-3 text-red-500" />;
+        return <Megaphone className="h-3 w-3 text-red-500 dark:text-red-400" />;
       default:
-        return <User className="h-3 w-3 text-gray-500" />;
+        return <User className="h-3 w-3 text-gray-500 dark:text-gray-400" />;
     }
   };
 
@@ -315,13 +315,13 @@ export function UnifiedBroadcastChat({
     switch (messageType) {
       case "host":
         return (
-          <Badge className="bg-yellow-100 text-yellow-800 text-xs">Host</Badge>
+          <Badge className="bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200 text-xs">Host</Badge>
         );
       case "moderator":
-        return <Badge className="bg-blue-100 text-blue-800 text-xs">Mod</Badge>;
+        return <Badge className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 text-xs">Mod</Badge>;
       case "announcement":
         return (
-          <Badge className="bg-red-100 text-red-800 text-xs">
+          <Badge className="bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 text-xs">
             Announcement
           </Badge>
         );
@@ -348,7 +348,7 @@ export function UnifiedBroadcastChat({
               <div
                 className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}
               />
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
                 {onlineUsers} online
               </span>
             </div>
@@ -359,20 +359,20 @@ export function UnifiedBroadcastChat({
         <div className="flex flex-col h-96">
           {/* Pinned Messages */}
           {pinnedMessages.length > 0 && (
-            <div className="border-b bg-yellow-50 p-2">
-              <div className="text-xs font-medium text-yellow-800 mb-1 flex items-center gap-1">
+            <div className="border-b bg-yellow-50 dark:bg-yellow-900/20 p-2">
+              <div className="text-xs font-medium text-yellow-800 dark:text-yellow-200 mb-1 flex items-center gap-1">
                 <Pin className="h-3 w-3" />
                 Pinned Messages
               </div>
               {pinnedMessages.map((message) => (
                 <div
                   key={`pinned-${message.id}`}
-                  className="text-sm p-1 bg-yellow-100 rounded mb-1"
+                  className="text-sm p-1 bg-yellow-100 dark:bg-yellow-800/30 text-yellow-900 dark:text-yellow-100 rounded mb-1"
                 >
                   <span className="font-medium">{message.username}:</span>{" "}
                   {message.content}
                 </div>
-              ))}
+              ))}}
             </div>
           )}
 
@@ -384,7 +384,7 @@ export function UnifiedBroadcastChat({
                   key={message.id}
                   className={`flex gap-3 ${
                     message.messageType === "announcement"
-                      ? "bg-red-50 p-2 rounded-lg"
+                      ? "bg-red-50 dark:bg-red-900/20 p-2 rounded-lg"
                       : ""
                   }`}
                 >
@@ -401,11 +401,11 @@ export function UnifiedBroadcastChat({
                       </span>
                       {getRoleIcon(message.messageType)}
                       {getRoleBadge(message.messageType)}
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
                         {formatTime(message.timestamp)}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-700 break-words">
+                    <p className="text-sm text-gray-700 dark:text-gray-300 break-words">
                       {message.content}
                     </p>
                     <div className="flex items-center gap-2 mt-1">

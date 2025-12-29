@@ -106,7 +106,11 @@ export function RegisterForm() {
       })
     }
 
-    registerMutation.mutate(registrationData)
+    try {
+      await registerMutation.mutateAsync(registrationData)
+    } catch (error: any) {
+      setError(error.message || 'Registration failed')
+    }
   }
 
   return (

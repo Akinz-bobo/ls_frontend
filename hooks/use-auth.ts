@@ -145,13 +145,24 @@ export function useRegister() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: (data: RegisterData) => apiClient.auth.register(data),
-    onSuccess: () => {
-      toast.success('Account created! Please check your email to verify your account.');
+    mutationFn: async (data: RegisterData & { userType?: string }) => {
+      if (data.userType === 'staff') {
+        return apiClient.auth.registerStaff(data);
+      } else {
+        return apiClient.auth.register(data);
+      }
+    },
+    onSuccess: (_, variables) => {
+      if (variables.userType === 'staff') {
+        toast.success('Staff account created! Pending approval from admin.');
+      } else {
+        toast.success('Account created! Please check your email to verify your account.');
+      }
       router.push('/signin');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Registration failed');
+      // Don't show toast here, let the form handle it
+      throw error;
     },
   });
 }
