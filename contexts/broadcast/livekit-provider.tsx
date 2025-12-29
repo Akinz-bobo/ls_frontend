@@ -45,7 +45,7 @@ export function LiveKitBroadcastProvider({
 
         const data = await response.json();
         const serverUrl =
-          process.env.NEXT_PUBLIC_LIVEKIT_SERVER_URL || "ws://localhost:7880";
+          process.env.NEXT_PUBLIC_LIVEKIT_SERVER_URL || "wss://radio-app-71vifx7z.omarseille1b.production.livekit.cloud";
 
         await room.connect(serverUrl, data.token);
         setConnected(true);

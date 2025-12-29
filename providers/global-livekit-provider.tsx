@@ -270,17 +270,20 @@ export function GlobalLiveKitProvider({
             tokenAbort = new AbortController();
             // keep a reference visible to the timeout handler
             outerTokenAbort = tokenAbort;
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/livekit/token`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                userId,
-                roomName: "radio-station", // Single shared room for all users
-                userName: userName || userId,
-                role,
-              }),
-              signal: tokenAbort.signal,
-            });
+            const response = await fetch(
+              `${process.env.NEXT_PUBLIC_API_URL}/livekit/token`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  userId,
+                  roomName: "radio-station", // Single shared room for all users
+                  userName: userName || userId,
+                  role,
+                }),
+                signal: tokenAbort.signal,
+              }
+            );
 
             if (!response.ok) {
               const errorText = await response.text();
@@ -305,7 +308,8 @@ export function GlobalLiveKitProvider({
           }
 
           const serverUrl =
-            process.env.NEXT_PUBLIC_LIVEKIT_SERVER_URL || "ws://localhost:7880";
+            process.env.NEXT_PUBLIC_LIVEKIT_SERVER_URL ||
+            "wss://radio-app-71vifx7z.omarseille1b.production.livekit.cloud";
 
           console.log("🌐 [LiveKit] Connecting to server:", {
             serverUrl,

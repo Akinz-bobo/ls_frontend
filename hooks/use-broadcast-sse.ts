@@ -20,13 +20,13 @@ export function useBroadcastSSE() {
     const connectSSE = () => {
       try {
         const backendUrl =
-          process.env.NEXT_PUBLIC_SSE_URL || "http://localhost:3001/api/sse";
-        const eventSource = new EventSource(
-          `${backendUrl}/connect`,
-          {
-            withCredentials: true,
-          }
-        );
+          process.env.NEXT_PUBLIC_SSE_URL ||
+          (process.env.NEXT_PUBLIC_API_URL
+            ? `${process.env.NEXT_PUBLIC_API_URL}/api/sse`
+            : null);
+        const eventSource = new EventSource(`${backendUrl}/connect`, {
+          withCredentials: true,
+        });
 
         console.log("[SSE] Connecting to broadcast events...");
 

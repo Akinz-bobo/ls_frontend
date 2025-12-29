@@ -21,6 +21,7 @@ interface BroadcastStore {
   formData: BroadcastFormData;
   currentBroadcast: any;
   currentShow: string;
+  streamUrl: string | null;
   selectedBroadcast: any;
   broadcasts: any[];
   upcomingBroadcasts: any[];
@@ -33,6 +34,7 @@ interface BroadcastStore {
   // Broadcast state management
   setBroadcast: (broadcast: any) => void;
   setCurrentShow: (show: string) => void;
+  setStreamUrl: (url: string | null) => void;
   setSelectedBroadcast: (broadcast: any) => void;
   setBroadcasts: (broadcasts: any[]) => void;
   setUpcomingBroadcasts: (broadcasts: any[]) => void;
@@ -75,6 +77,7 @@ export const useBroadcastStore = create<BroadcastStore>((set) => ({
   formData: defaultFormData,
   currentBroadcast: null,
   currentShow: 'No live broadcast',
+  streamUrl: null,
   selectedBroadcast: null,
   broadcasts: [],
   upcomingBroadcasts: [],
@@ -95,6 +98,9 @@ export const useBroadcastStore = create<BroadcastStore>((set) => ({
   
   setCurrentShow: (show) =>
     set({ currentShow: show }),
+  
+  setStreamUrl: (url) =>
+    set({ streamUrl: url }),
   
   setSelectedBroadcast: (broadcast) =>
     set({ selectedBroadcast: broadcast }),

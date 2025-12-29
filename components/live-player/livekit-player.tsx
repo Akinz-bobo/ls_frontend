@@ -74,7 +74,7 @@ export function LiveKitPlayer({
     <div className={className}>
       <LiveKitRoom
         serverUrl={
-          process.env.NEXT_PUBLIC_LIVEKIT_SERVER_URL || "ws://localhost:7880"
+          process.env.NEXT_PUBLIC_LIVEKIT_SERVER_URL || "wss://radio-app-71vifx7z.omarseille1b.production.livekit.cloud"
         }
         token={token}
         connectOptions={{ autoSubscribe: true }}
