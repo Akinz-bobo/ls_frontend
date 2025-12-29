@@ -14,10 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Filter, Search } from "lucide-react";
-import {
-  fetchAudiobookSearch,
-  getFavoriteAudiobooks,
-} from "@/app/audiobooks/actions";
 import { useToast } from "@/hooks/use-toast";
 
 interface Audiobook {
@@ -73,11 +69,13 @@ export function AudiobookList({
   const loadFavorites = async () => {
     setIsLoading(true);
     try {
-      const result = await getFavoriteAudiobooks();
+      const response = await fetch('/api/audiobooks/favorites');
+      const result = await response.json();
+      
       if (result.success) {
         setAudiobooks(result.data!);
       } else {
-        if (result.authRequired) {
+        if (response.status === 401) {
           toast({
             title: "Please sign in",
             description: "Sign in to view your favorite audiobooks",
@@ -108,7 +106,9 @@ export function AudiobookList({
 
     setIsSearching(true);
     try {
-      const result = await fetchAudiobookSearch(searchTerm);
+      const response = await fetch(`/api/audiobooks/search?q=${encodeURIComponent(searchTerm)}`);
+      const result = await response.json();
+      
       if (result.success) {
         setAudiobooks(result.data!);
       } else {

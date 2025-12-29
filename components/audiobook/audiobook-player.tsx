@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
-import { saveAudiobookProgress } from "@/app/audiobooks/actions";
 
 interface AudiobookPlayerProps {
   title: string;
@@ -191,11 +190,14 @@ export function AudiobookPlayer({
     if (isPlaying) {
       progressSaveTimerRef.current = setInterval(() => {
         if (audioRef.current) {
-          saveAudiobookProgress(
-            audiobookId,
-            audioRef.current.currentTime,
-            currentChapter
-          );
+          fetch(`/api/audiobooks/${audiobookId}/progress`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              position: audioRef.current.currentTime,
+              chapter: currentChapter
+            })
+          }).catch(console.error);
         }
       }, 10000);
     } else if (progressSaveTimerRef.current) {
@@ -229,11 +231,14 @@ export function AudiobookPlayer({
       cancelAnimationFrame(animationRef.current!);
 
       // Save progress when pausing
-      saveAudiobookProgress(
-        audiobookId,
-        audioRef.current.currentTime,
-        currentChapter
-      );
+      fetch(`/api/audiobooks/${audiobookId}/progress`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          position: audioRef.current.currentTime,
+          chapter: currentChapter
+        })
+      }).catch(console.error);
     } else {
       audioRef.current
         .play()

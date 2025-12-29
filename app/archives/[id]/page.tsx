@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { getArchiveById } from "@/app/archives/actions";
 import { ArchivePlayer } from "@/components/archives/archive-player";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,12 +23,13 @@ interface ArchivePageProps {
 
 async function ArchiveContent({ id }: { id: string }) {
   try {
-    const result = await getArchiveById(id);
-
-    if (!result.success) {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/archives/${id}`);
+    
+    if (!response.ok) {
       notFound();
     }
 
+    const result = await response.json();
     const archive = result.data;
 
     if (!archive) {
