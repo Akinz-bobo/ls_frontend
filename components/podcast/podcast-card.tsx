@@ -8,9 +8,9 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Play, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toggleFavoritePodcast } from "@/app/podcasts/actions";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { usePodcasts } from "@/hooks/use-podcasts";
 
 interface PodcastCardProps {
   id: string;
@@ -38,6 +38,7 @@ export function PodcastCard({
   const [isFavorite, setIsFavorite] = useState(initialIsFavorite);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { toggleFavorite } = usePodcasts();
 
   const handleFavoriteClick = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -45,25 +46,15 @@ export function PodcastCard({
 
     setIsLoading(true);
     try {
-      const result = await toggleFavoritePodcast({
-        id,
-        title,
-        image,
-        artist,
+      await toggleFavorite.mutateAsync(id);
+      setIsFavorite(!isFavorite);
+      toast({
+        title: !isFavorite ? "Added to favorites" : "Removed from favorites",
+        description: !isFavorite
+          ? `${title} has been added to your favorites`
+          : `${title} has been removed from your favorites`,
+        duration: 3000,
       });
-
-      if (result.success) {
-        setIsFavorite(result.isFavorite!);
-        toast({
-          title: result.isFavorite
-            ? "Added to favorites"
-            : "Removed from favorites",
-          description: result.isFavorite
-            ? `${title} has been added to your favorites`
-            : `${title} has been removed from your favorites`,
-          duration: 3000,
-        });
-      }
     } catch (error) {
       toast({
         title: "Error",

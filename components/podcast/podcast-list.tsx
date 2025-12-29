@@ -12,11 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Filter, Search } from "lucide-react";
-import {
-  fetchPodcastSearch,
-  getFavoritePodcasts,
-} from "@/app/podcasts/actions";
 import { useToast } from "@/hooks/use-toast";
+import { usePodcasts } from "@/hooks/use-podcasts";
 
 interface Podcast {
   collectionId: string;
@@ -58,6 +55,7 @@ export function PodcastList({
   const [sortBy, setSortBy] = useState<string>("name");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { searchPodcasts, getFavorites } = usePodcasts();
 
   // Load favorites if showFavoritesOnly is true
   React.useEffect(() => {
@@ -69,28 +67,12 @@ export function PodcastList({
   const loadFavorites = async () => {
     setIsLoading(true);
     try {
-      const result = await getFavoritePodcasts();
-      if (result.success) {
-        setPodcasts(result.data || []);
-      } else {
-        if (result.authRequired) {
-          toast({
-            title: "Please sign in",
-            description: "Sign in to view your favorite podcasts",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Error",
-            description: result.error || "Failed to load favorites",
-            variant: "destructive",
-          });
-        }
-      }
+      const result = await getFavorites.mutateAsync();
+      setPodcasts(result || []);
     } catch (error) {
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: "Failed to load favorites",
         variant: "destructive",
       });
     } finally {
@@ -104,20 +86,12 @@ export function PodcastList({
 
     setIsSearching(true);
     try {
-      const result = await fetchPodcastSearch(searchTerm);
-      if (result.success) {
-        setPodcasts(result.data || []);
-      } else {
-        toast({
-          title: "Search failed",
-          description: "Failed to search podcasts. Please try again.",
-          variant: "destructive",
-        });
-      }
+      const result = await searchPodcasts.mutateAsync(searchTerm);
+      setPodcasts(result || []);
     } catch (error) {
       toast({
-        title: "Error",
-        description: "An unexpected error occurred",
+        title: "Search failed",
+        description: "Failed to search podcasts. Please try again.",
         variant: "destructive",
       });
     } finally {
