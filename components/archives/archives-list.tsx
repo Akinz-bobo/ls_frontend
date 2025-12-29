@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Filter, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/api-client";
 
 interface ArchiveData {
   id: string;
@@ -61,22 +62,12 @@ export function ArchivesList({
 
     setIsSearching(true);
     try {
-      const response = await fetch(`/api/archives/search?q=${encodeURIComponent(searchTerm)}`);
-      const result = await response.json();
-      
-      if (result.success) {
-        setArchives(result.data || []);
-      } else {
-        toast({
-          title: "Search failed",
-          description: "Failed to search archives. Please try again.",
-          variant: "destructive",
-        });
-      }
+      const result = await apiClient.request(`/archives/search?q=${encodeURIComponent(searchTerm)}`);
+      setArchives(result.data || []);
     } catch (error) {
       toast({
-        title: "Error",
-        description: "An unexpected error occurred",
+        title: "Search failed",
+        description: "Failed to search archives. Please try again.",
         variant: "destructive",
       });
     } finally {

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Play, Clock, Calendar, Download, Heart, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/api-client";
 
 interface ArchiveData {
   id: string;
@@ -46,7 +47,7 @@ export function ArchiveCard({
     e.stopPropagation();
 
     try {
-      await fetch(`/api/archives/${archive.id}/play`, { method: 'POST' });
+      await apiClient.request(`/archives/${archive.id}/play`, { method: 'POST' });
       toast({
         title: "Playing",
         description: `Now playing: ${archive.title}`,
@@ -66,35 +67,33 @@ export function ArchiveCard({
 
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/archives/${archive.id}/favorite`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+      const result = await apiClient.request(`/archives/${archive.id}/favorite`, {
+        method: 'POST'
       });
-      const result = await response.json();
       
-      if (result.success) {
-        setIsFavorite(result.isFavorite ?? false);
-        toast({
-          title: result.isFavorite
-            ? "Added to favorites"
-            : "Removed from favorites",
-          description: result.isFavorite
-            ? `${archive.title} has been added to your favorites`
-            : `${archive.title} has been removed from your favorites`,
-        });
-      } else if (response.status === 401) {
+      setIsFavorite(result.isFavorite ?? false);
+      toast({
+        title: result.isFavorite
+          ? "Added to favorites"
+          : "Removed from favorites",
+        description: result.isFavorite
+          ? `${archive.title} has been added to your favorites`
+          : `${archive.title} has been removed from your favorites`,
+      });
+    } catch (error: any) {
+      if (error.message.includes('401')) {
         toast({
           title: "Please sign in",
           description: "Sign in to add archives to your favorites",
           variant: "destructive",
         });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to update favorites",
+          variant: "destructive",
+        });
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update favorites",
-        variant: "destructive",
-      });
     } finally {
       setIsLoading(false);
     }

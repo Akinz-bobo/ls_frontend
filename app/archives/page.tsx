@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { ArchivesList } from "@/components/archives/archives-list";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { apiClient } from "@/lib/api-client";
 
 // Mock data for when database is not available
 const mockArchives = [
@@ -31,16 +32,9 @@ async function ArchivesContent() {
     let categories: string[] = [];
     
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/archives`);
-      if (response.ok) {
-        const result = await response.json();
-        archives = result.data || [];
-        categories = result.categories || [];
-      } else {
-        // Fallback to mock data
-        archives = mockArchives;
-        categories = mockCategories;
-      }
+      const result = await apiClient.request('/archives');
+      archives = result.data || [];
+      categories = result.categories || [];
     } catch (error) {
       console.log("API not available, using mock data");
       archives = mockArchives;

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Filter, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/api-client";
 
 interface Audiobook {
   id: string;
@@ -69,32 +70,22 @@ export function AudiobookList({
   const loadFavorites = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/audiobooks/favorites');
-      const result = await response.json();
-      
-      if (result.success) {
-        setAudiobooks(result.data!);
+      const result = await apiClient.request('/audiobooks/favorites');
+      setAudiobooks(result.data!);
+    } catch (error: any) {
+      if (error.message.includes('401')) {
+        toast({
+          title: "Please sign in",
+          description: "Sign in to view your favorite audiobooks",
+          variant: "destructive",
+        });
       } else {
-        if (response.status === 401) {
-          toast({
-            title: "Please sign in",
-            description: "Sign in to view your favorite audiobooks",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Error",
-            description: result.error || "Failed to load favorites",
-            variant: "destructive",
-          });
-        }
+        toast({
+          title: "Error",
+          description: "Failed to load favorites",
+          variant: "destructive",
+        });
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred",
-        variant: "destructive",
-      });
     } finally {
       setIsLoading(false);
     }
@@ -106,22 +97,12 @@ export function AudiobookList({
 
     setIsSearching(true);
     try {
-      const response = await fetch(`/api/audiobooks/search?q=${encodeURIComponent(searchTerm)}`);
-      const result = await response.json();
-      
-      if (result.success) {
-        setAudiobooks(result.data!);
-      } else {
-        toast({
-          title: "Search failed",
-          description: "Failed to search audiobooks. Please try again.",
-          variant: "destructive",
-        });
-      }
+      const result = await apiClient.request(`/audiobooks/search?q=${encodeURIComponent(searchTerm)}`);
+      setAudiobooks(result.data!);
     } catch (error) {
       toast({
-        title: "Error",
-        description: "An unexpected error occurred",
+        title: "Search failed",
+        description: "Failed to search audiobooks. Please try again.",
         variant: "destructive",
       });
     } finally {

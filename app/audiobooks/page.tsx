@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { AudiobookList } from "@/components/audiobook/audiobook-list";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { apiClient } from "@/lib/api-client";
 
 // Mock data for when database is not available
 const mockAudiobooks = [
@@ -36,16 +37,9 @@ async function AudiobooksContent() {
     let genres: any[] = [];
     
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/audiobooks`);
-      if (response.ok) {
-        const result = await response.json();
-        formattedAudiobooks = result.data || [];
-        genres = result.genres || [];
-      } else {
-        // Fallback to mock data
-        formattedAudiobooks = mockAudiobooks;
-        genres = mockGenres;
-      }
+      const result = await apiClient.request('/audiobooks');
+      formattedAudiobooks = result.data || [];
+      genres = result.genres || [];
     } catch (error) {
       console.log("API not available, using mock data");
       formattedAudiobooks = mockAudiobooks;

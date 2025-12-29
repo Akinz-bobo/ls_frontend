@@ -97,19 +97,19 @@ export default async function AudiobookDetailPage({
         }
 
         // Check if this audiobook is in favorites
-        const favoriteResponse = await fetch(`/api/audiobooks/${id}/favorite`);
-        if (favoriteResponse.ok) {
-          const favoriteResult = await favoriteResponse.json();
-          if (favoriteResult.success && favoriteResult.isFavorite !== undefined) {
+        try {
+          const favoriteResult = await apiClient.request(`/audiobooks/${id}/favorite`);
+          if (favoriteResult.isFavorite !== undefined) {
             setIsFavorite(favoriteResult.isFavorite);
           }
+        } catch (error) {
+          // Ignore favorite check errors
         }
 
         // Get saved progress
-        const progressResponse = await fetch(`/api/audiobooks/${id}/progress`);
-        if (progressResponse.ok) {
-          const progressResult = await progressResponse.json();
-          if (progressResult.success && progressResult.data) {
+        try {
+          const progressResult = await apiClient.request(`/audiobooks/${id}/progress`);
+          if (progressResult.data) {
             const data = progressResult.data as any;
             setProgress({
               position: data.position || 0,
@@ -117,6 +117,8 @@ export default async function AudiobookDetailPage({
             });
             setCurrentChapter(data.chapter || data.chapterId || 0);
           }
+        } catch (error) {
+          // Ignore progress errors
         }
       } catch (err) {
         setError("An unexpected error occurred");
@@ -146,18 +148,16 @@ export default async function AudiobookDetailPage({
     if (!audiobookData?.volumeInfo) return;
 
     try {
-      const response = await fetch(`/api/audiobooks/${id}/favorite`, {
+      const result = await apiClient.request(`/audiobooks/${id}/favorite`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: audiobookData.volumeInfo.title,
           image: audiobookData.volumeInfo.imageLinks?.thumbnail || "/placeholder.svg?height=600&width=400",
           author: audiobookData.volumeInfo.authors?.[0] || "Unknown Author",
         })
       });
-      const result = await response.json();
 
-      if (result.success && result.isFavorite !== undefined) {
+      if (result.isFavorite !== undefined) {
         setIsFavorite(result.isFavorite);
         toast({
           title: result.isFavorite

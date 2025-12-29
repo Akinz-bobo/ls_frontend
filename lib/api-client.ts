@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 class ApiClient {
   private baseURL: string;
@@ -54,7 +54,7 @@ class ApiClient {
 
     config.headers = headers;
 
-    const response = await fetch(`${this.baseURL}${endpoint}`, config);
+    const response = await fetch(`${this.baseURL}/api${endpoint}`, config);
     
     if (!response.ok) {
       if (response.status === 401) {

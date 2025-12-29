@@ -10,6 +10,7 @@ import { Play, Heart, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/api-client";
 
 function formatDuration(seconds?: number): string {
   if (!seconds || isNaN(seconds)) return "0:00";
@@ -62,25 +63,21 @@ export function AudiobookCard({
 
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/audiobooks/${id}/favorite`, {
+      const result = await apiClient.request(`/audiobooks/${id}/favorite`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, image, author })
       });
-      const result = await response.json();
 
-      if (result.success) {
-        setIsFavorite(result.isFavorite ?? false);
-        toast({
-          title: result.isFavorite
-            ? "Added to favorites"
-            : "Removed from favorites",
-          description: result.isFavorite
-            ? `${title} has been added to your favorites`
-            : `${title} has been removed from your favorites`,
-          duration: 3000,
-        });
-      }
+      setIsFavorite(result.isFavorite ?? false);
+      toast({
+        title: result.isFavorite
+          ? "Added to favorites"
+          : "Removed from favorites",
+        description: result.isFavorite
+          ? `${title} has been added to your favorites`
+          : `${title} has been removed from your favorites`,
+        duration: 3000,
+      });
     } catch (error) {
       toast({
         title: "Error",

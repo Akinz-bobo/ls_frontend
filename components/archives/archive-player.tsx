@@ -12,6 +12,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { set } from "date-fns";
+import { apiClient } from "@/lib/api-client";
 
 interface ArchiveData {
   id: string;
@@ -53,10 +54,8 @@ export function ArchivePlayer({ archive }: ArchivePlayerProps) {
   useEffect(() => {
     const loadProgress = async () => {
       try {
-        const response = await fetch(`/api/archives/${archive.id}/progress`);
-        const result = await response.json();
-        
-        if (result.success && result.data?.position) {
+        const result = await apiClient.request(`/archives/${archive.id}/progress`);
+        if (result.data?.position) {
           setCurrentTime(result.data.position);
           if (audioRef.current) {
             audioRef.current.currentTime = result.data.position;
@@ -75,9 +74,8 @@ export function ArchivePlayer({ archive }: ArchivePlayerProps) {
     const saveProgress = async () => {
       if (currentTime > 0) {
         try {
-          await fetch(`/api/archives/${archive.id}/progress`, {
+          await apiClient.request(`/archives/${archive.id}/progress`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ position: currentTime })
           });
         } catch (error) {
