@@ -17,8 +17,8 @@ import { GlobalAudioProvider } from "@/components/global-audio-provider"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "WaveStream Radio",
-  description: "Your premier destination for podcasts, audiobooks, and live broadcasts",
+  title: "Cinema Book",
+  description: "Your premier destination for audiobooks, podcasts, and digital storytelling",
     generator: 'v0.dev'
 }
 

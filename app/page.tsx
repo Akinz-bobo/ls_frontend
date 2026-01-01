@@ -6,6 +6,18 @@ import FeaturedPodcasts from "@/components/featured-podcasts";
 import UpcomingEvents from "@/components/upcoming-events";
 import FeaturedPrograms from "@/components/featured-programs";
 import HeroAnimation from "@/components/hero-animation";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Cinema Book - Professional Audiobook Production",
+  description: "Professional audiobook production with original soundtracks, professional narrators, HD sound effects, and multilanguage translations. Your premier destination for digital storytelling.",
+  keywords: "audiobook production, professional narrators, original soundtrack, HD sound effects, multilanguage translations, digital storytelling",
+  openGraph: {
+    title: "Cinema Book - Professional Audiobook Production",
+    description: "Professional audiobook production with original soundtracks, professional narrators, HD sound effects, and multilanguage translations.",
+    type: "website",
+  },
+};
 
 export default function Home() {
   return (

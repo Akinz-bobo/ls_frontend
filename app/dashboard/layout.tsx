@@ -274,7 +274,7 @@ export default function AdminLayout({
 
                 <div className="border-t border-brand-700 pt-6 flex flex-col md:flex-row justify-between items-center">
                   <p className="text-brand-200 text-sm">
-                    © {new Date().getFullYear()} WaveStream. All rights
+                    © {new Date().getFullYear()} Cinema Book. All rights
                     reserved.
                   </p>
                   <div className="flex space-x-4 mt-4 md:mt-0">

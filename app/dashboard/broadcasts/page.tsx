@@ -36,9 +36,13 @@ export default function BroadcastsPage() {
   const deleteBroadcastMutation = useDeleteBroadcast();
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [editingBroadcast, setEditingBroadcast] = useState<Broadcast | null>(null);
+  const [editingBroadcast, setEditingBroadcast] = useState<Broadcast | null>(
+    null
+  );
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [broadcastToDelete, setBroadcastToDelete] = useState<Broadcast | null>(null);
+  const [broadcastToDelete, setBroadcastToDelete] = useState<Broadcast | null>(
+    null
+  );
 
   const handleCreateBroadcast = () => {
     resetForm();
@@ -49,7 +53,7 @@ export default function BroadcastsPage() {
     // Populate form with existing broadcast data
     const startTime = new Date(broadcast.startTime);
     const endTime = new Date(broadcast.endTime);
-    
+
     useBroadcastStore.getState().setFormData({
       title: broadcast.title || "",
       description: broadcast.description || "",
@@ -65,7 +69,7 @@ export default function BroadcastsPage() {
       staff: broadcast.staff || [],
       guests: broadcast.guests || [],
     });
-    
+
     setEditingBroadcast(broadcast);
     setIsCreateDialogOpen(true);
   };
@@ -157,7 +161,9 @@ export default function BroadcastsPage() {
 
         {broadcasts.length === 0 ? (
           <div className="text-center py-12 sm:py-16">
-            <p className="text-gray-500 text-sm sm:text-base mb-4">No broadcasts found</p>
+            <p className="text-gray-500 text-sm sm:text-base mb-4">
+              No broadcasts found
+            </p>
             <Button
               variant="outline"
               className="w-full sm:w-auto"
@@ -168,7 +174,7 @@ export default function BroadcastsPage() {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {broadcasts.map((broadcast: Broadcast) => (
               <BroadcastCard
                 key={broadcast.id}
@@ -201,7 +207,8 @@ export default function BroadcastsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Broadcast</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{broadcastToDelete?.title}"? This action cannot be undone.
+              Are you sure you want to delete "{broadcastToDelete?.title}"? This
+              action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
